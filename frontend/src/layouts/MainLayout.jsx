@@ -1,0 +1,145 @@
+import React from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import useAuthStore from '../store/useAuthStore';
+import { 
+  LayoutDashboard, 
+  Users, 
+  LogOut, 
+  Menu,
+  X,
+  ChevronsLeft,
+  ChevronsRight,
+  PieChart,
+  User as UserIcon
+} from 'lucide-react';
+import { useState } from 'react';
+import { cn } from '../utils/cn';
+
+const MainLayout = ({ children }) => {
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const sidebarWidth = collapsed ? 'md:w-20 w-64' : 'md:w-64 w-64';
+  const contentPadding = collapsed ? 'md:pl-20' : 'md:pl-64';
+
+  const menuItems = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Groups', path: '/groups', icon: Users },
+    { name: 'Reports', path: '/reports', icon: PieChart },
+    { name: 'Profile', path: '/profile', icon: UserIcon },
+  ];
+
+  return (
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-white dark:bg-slate-900 transition-all duration-300 shadow-xl md:shadow-none",
+        sidebarWidth,
+        mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      )}>
+        <div className="p-6 flex items-center justify-between">
+          {!collapsed && <span className="text-xl font-bold text-primary-600">SmartSplit</span>}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1 hover:bg-slate-100 rounded hidden md:inline-flex"
+            >
+              {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
+            </button>
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="p-1 hover:bg-slate-100 rounded inline-flex md:hidden"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <nav className="flex-1 px-4 py-4 space-y-2">
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                location.pathname === item.path 
+                  ? "bg-primary-50 text-primary-600" 
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              )}
+            >
+              <item.icon size={22} />
+              {!collapsed && <span>{item.name}</span>}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t">
+          <Link to="/profile" className="flex items-center gap-3 mb-4 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-xl transition-all">
+            <img src={user?.avatar} alt={user?.name} className="w-10 h-10 rounded-full border shadow-sm group-hover:border-primary-500" />
+            {!collapsed && (
+              <div className="overflow-hidden">
+                <p className="font-semibold text-sm truncate group-hover:text-primary-600">{user?.name}</p>
+                <p className="text-xs text-slate-500 truncate">Settings</p>
+              </div>
+            )}
+          </Link>
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <LogOut size={20} />
+            {!collapsed && <span>Logout</span>}
+          </button>
+        </div>
+      </aside>
+
+      <div className={cn('flex-1 flex flex-col overflow-hidden', contentPadding)}>
+        <div className="md:hidden sticky top-0 z-30 flex items-center justify-between p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b">
+          <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+            <Menu size={20} />
+          </button>
+          <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-indigo-600 bg-clip-text text-transparent">SmartSplit</span>
+          <button onClick={handleLogout} className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold">
+            Logout
+          </button>
+        </div>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-8">
+          <div className="max-w-6xl mx-auto">
+            {children}
+          </div>
+        </main>
+
+        {/* Mobile Bottom Navigation - Native App feel */}
+        <nav className="md:hidden fixed bottom-6 left-4 right-4 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border border-slate-200/50 dark:border-slate-800/50 rounded-3xl flex items-center justify-around p-3 shadow-2xl shadow-black/10">
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn(
+                "flex flex-col items-center gap-1.5 p-2 px-6 rounded-2xl transition-all active:scale-90",
+                location.pathname === item.path 
+                  ? "text-primary-600 bg-primary-50 dark:bg-primary-500/10" 
+                  : "text-slate-400"
+              )}
+            >
+              <item.icon size={22} className={cn(location.pathname === item.path && "scale-110")} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">{item.name}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
+
+      {mobileOpen && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setMobileOpen(false)} />}
+    </div>
+  );
+};
+
+export default MainLayout;
