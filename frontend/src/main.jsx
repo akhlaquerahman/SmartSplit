@@ -6,6 +6,10 @@ import App from './App.jsx'
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+if (!clientId) {
+  throw new Error('Missing VITE_GOOGLE_CLIENT_ID. Set this in your Netlify/Vercel environment variables.');
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <GoogleOAuthProvider clientId={clientId}>
