@@ -109,10 +109,16 @@ const GroupDetails = () => {
     if (selectedParticipants.length === 0 || !activeGroup) return [];
 
     if (expenseForm.splitType === 'equal') {
-      const share = amount / selectedParticipants.length;
-      return selectedParticipants.map((userId) => {
+      const baseShare = Number((amount / selectedParticipants.length).toFixed(2));
+      return selectedParticipants.map((userId, index) => {
         const member = activeGroup.members.find((item) => item.user._id === userId);
-        return { userId, name: member?.user.name || 'Member', amount: share || 0 };
+        let shareAmount;
+        if (index === selectedParticipants.length - 1) {
+          shareAmount = Number((amount - (baseShare * (selectedParticipants.length - 1))).toFixed(2));
+        } else {
+          shareAmount = baseShare;
+        }
+        return { userId, name: member?.user.name || 'Member', amount: shareAmount || 0 };
       });
     }
 
@@ -193,12 +199,20 @@ const GroupDetails = () => {
       return;
     }
 
-    const splitDetails = selectedParticipants.map((userId) => ({
-      user: userId,
-      amount: expenseForm.splitType === 'equal'
-        ? Number((amount / selectedParticipants.length).toFixed(2))
-        : Number(customShares[userId] || 0)
-    }));
+    const baseShare = Number((amount / selectedParticipants.length).toFixed(2));
+    const splitDetails = selectedParticipants.map((userId, index) => {
+      let shareAmount;
+      if (expenseForm.splitType === 'equal') {
+        if (index === selectedParticipants.length - 1) {
+          shareAmount = Number((amount - (baseShare * (selectedParticipants.length - 1))).toFixed(2));
+        } else {
+          shareAmount = baseShare;
+        }
+      } else {
+        shareAmount = Number(customShares[userId] || 0);
+      }
+      return { user: userId, amount: shareAmount };
+    });
 
     const splitSum = splitDetails.reduce((sum, item) => sum + item.amount, 0);
     if (Math.abs(splitSum - amount) > 0.1) {
