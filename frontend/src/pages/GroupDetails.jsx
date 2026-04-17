@@ -229,7 +229,6 @@ const GroupDetails = () => {
     });
 
     if (success) {
-      await fetchGroupDetails(id);
       setShowExpenseModal(false);
       setExpenseForm({ description: '', amount: '', category: 'General', splitType: 'equal' });
       setSelectedParticipants(activeGroup.members.map((member) => member.user._id));

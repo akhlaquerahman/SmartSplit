@@ -116,10 +116,19 @@ const useGroupStore = create((set, get) => ({
       await axios.post(`${API_URL}/expenses`, expenseData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      await get().fetchGroupDetails(expenseData.groupId);
+      
+      // Attempt background refresh, but don't block the UI if it fails intermittently
+      try {
+        await get().fetchGroupDetails(expenseData.groupId);
+      } catch (refreshError) {
+        console.error('Background refresh failed after adding expense:', refreshError);
+      }
+      
+      set({ loading: false });
       return true;
     } catch (error) {
-      set({ error: error.response?.data?.message || error.message, loading: false });
+      const errorMessage = error.response?.data?.message || error.message;
+      set({ error: errorMessage, loading: false });
       return false;
     }
   },
