@@ -720,14 +720,14 @@ const GroupDetails = () => {
 
       <AnimatePresence>
         {showExpenseModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 px-4 py-8 backdrop-blur-sm">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-xl shadow-2xl"
+              className="bg-white dark:bg-slate-900 p-6 rounded-3xl w-full max-w-xl shadow-2xl max-h-[calc(100vh-4rem)] overflow-hidden mx-auto"
             >
               <h2 className="text-2xl font-bold mb-6">Add New Expense</h2>
-              <form onSubmit={handleAddExpense} className="space-y-4">
+              <form onSubmit={handleAddExpense} className="space-y-4 overflow-y-auto pr-1 max-h-[calc(100vh-14rem)]">
                 <div>
                   <label className="block text-sm font-medium mb-1 flex items-center gap-1">
                     Description <Info size={14} className="text-slate-300" />
@@ -856,8 +856,8 @@ const GroupDetails = () => {
 
       <AnimatePresence>
         {showAddMember && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-md shadow-2xl">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-8 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-3xl w-full max-w-md shadow-2xl max-h-[calc(100vh-4rem)] overflow-hidden mx-auto">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-bold">Invite Member</h3>
@@ -882,8 +882,8 @@ const GroupDetails = () => {
 
       <AnimatePresence>
         {showSettlementModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-lg shadow-2xl">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-8 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 p-6 rounded-3xl w-full max-w-lg shadow-2xl max-h-[calc(100vh-4rem)] overflow-hidden mx-auto">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-bold">Request Settlement</h3>
@@ -892,7 +892,7 @@ const GroupDetails = () => {
                 <button onClick={() => setShowSettlementModal(false)} className="text-slate-500 hover:text-slate-900">Close</button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto pr-1 max-h-[calc(100vh-16rem)]">
                 <div>
                   <p className="text-sm text-slate-500 mb-2">Payer</p>
                   <div className="rounded-2xl border bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-700 dark:text-slate-200">
@@ -975,8 +975,8 @@ const GroupDetails = () => {
 
       <AnimatePresence>
         {selectedSettlement && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="bg-white dark:bg-slate-900 p-8 rounded-3xl w-full max-w-2xl shadow-2xl">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-8 backdrop-blur-sm">
+            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="bg-white dark:bg-slate-900 p-6 rounded-3xl w-full max-w-2xl shadow-2xl max-h-[calc(100vh-4rem)] overflow-hidden mx-auto">
               <div className="flex items-start justify-between gap-4 mb-6">
                 <div>
                   <h3 className="text-2xl font-bold">Settlement receipt</h3>
@@ -985,7 +985,7 @@ const GroupDetails = () => {
                 <button onClick={() => setSelectedSettlement(null)} className="text-slate-500 hover:text-slate-900">Close</button>
               </div>
 
-              <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+              <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr] overflow-y-auto pr-1 max-h-[calc(100vh-16rem)]">
                 <div className="space-y-4">
                   <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
                     <p className="text-sm text-slate-500">Status</p>
