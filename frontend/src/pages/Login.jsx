@@ -8,7 +8,7 @@ import { GoogleLogin } from '@react-oauth/google';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, googleLogin, loading, error, clearError } = useAuthStore();
+  const { login, googleLogin, setError, loading, error, clearError } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -22,7 +22,13 @@ const Login = () => {
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    const success = await googleLogin(credentialResponse.credential);
+    const idToken = credentialResponse?.credential;
+    if (!idToken) {
+      setError('Google login failed: no credential returned by Google');
+      return;
+    }
+
+    const success = await googleLogin(idToken);
     if (success) navigate('/dashboard');
   };
 
@@ -99,7 +105,7 @@ const Login = () => {
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => {
-              console.log('Login Failed');
+              setError('Google login failed: sign-in failed in the browser');
             }}
             useOneTap
             theme="filled_blue"

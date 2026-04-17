@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/auth';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = `${API_BASE_URL}/api/auth`;
 
 const normalizeAvatar = (user) => {
   if (!user) return null;
@@ -70,10 +71,12 @@ const useAuthStore = create((set) => ({
       localStorage.setItem('token', userData.token);
       return true;
     } catch (error) {
-      set({ error: error.response?.data?.message || 'Google login failed', loading: false });
+      set({ error: error.response?.data?.message || error.message || 'Google login failed', loading: false });
       return false;
     }
   },
+
+  setError: (message) => set({ error: message }),
 
   verifyEmail: async (email, otp) => {
     set({ loading: true, error: null });
@@ -85,7 +88,7 @@ const useAuthStore = create((set) => ({
       localStorage.setItem('token', userData.token);
       return true;
     } catch (error) {
-      set({ error: error.response?.data?.message || 'Verification failed', loading: false });
+      set({ error: error.response?.data?.message || error.message || 'Verification failed', loading: false });
       return false;
     }
   },
