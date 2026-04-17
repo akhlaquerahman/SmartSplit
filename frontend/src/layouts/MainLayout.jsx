@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/useAuthStore';
 import { 
@@ -10,9 +10,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
   PieChart,
-  User as UserIcon
+  User as UserIcon,
+  Moon,
+  Sun
 } from 'lucide-react';
-import { useState } from 'react';
 import { cn } from '../utils/cn';
 
 const MainLayout = ({ children }) => {
@@ -21,6 +22,27 @@ const MainLayout = ({ children }) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    const appliedTheme = localStorage.getItem('theme') || theme;
+    setTheme(appliedTheme);
+    document.documentElement.classList.toggle('dark', appliedTheme === 'dark');
+    document.body.classList.toggle('dark', appliedTheme === 'dark');
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.body.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+    document.body.classList.toggle('dark', nextTheme === 'dark');
+  };
 
   const handleLogout = () => {
     logout();
@@ -38,15 +60,25 @@ const MainLayout = ({ children }) => {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className={cn(
+      'flex min-h-screen overflow-hidden transition-colors duration-300',
+      theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    )}>
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-white dark:bg-slate-900 transition-all duration-300 shadow-xl md:shadow-none",
+        "fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100 dark:border-slate-800 transition-all duration-300 shadow-xl md:shadow-none",
         sidebarWidth,
         mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       )}>
         <div className="p-6 flex items-center justify-between">
-          {!collapsed && <span className="text-xl font-bold text-primary-600">SmartSplit</span>}
+          {!collapsed && <span className="text-xl font-bold text-primary-600 dark:text-white">SmartSplit</span>}
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleToggleTheme}
+              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="p-1 hover:bg-slate-100 rounded hidden md:inline-flex"
@@ -68,10 +100,10 @@ const MainLayout = ({ children }) => {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                "sidebar-item flex items-center gap-3 p-3 rounded-lg transition-colors",
                 location.pathname === item.path 
-                  ? "bg-primary-50 text-primary-600" 
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  ? "sidebar-active bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100" 
+                  : "text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
               )}
             >
               <item.icon size={22} />
@@ -81,12 +113,12 @@ const MainLayout = ({ children }) => {
         </nav>
 
         <div className="p-4 border-t">
-          <Link to="/profile" className="flex items-center gap-3 mb-4 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-xl transition-all">
+          <Link to="/profile" className="sidebar-item flex items-center gap-3 mb-4 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-xl transition-all">
             <img src={user?.avatar} alt={user?.name} className="w-10 h-10 rounded-full border shadow-sm group-hover:border-primary-500" />
             {!collapsed && (
               <div className="overflow-hidden">
-                <p className="font-semibold text-sm truncate group-hover:text-primary-600">{user?.name}</p>
-                <p className="text-xs text-slate-500 truncate">Settings</p>
+                <p className="font-semibold text-sm truncate group-hover:text-primary-600 dark:group-hover:text-primary-300 dark:text-slate-100">{user?.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Settings</p>
               </div>
             )}
           </Link>
@@ -101,14 +133,23 @@ const MainLayout = ({ children }) => {
       </aside>
 
       <div className={cn('flex-1 flex flex-col overflow-hidden', contentPadding)}>
-        <div className="md:hidden sticky top-0 z-30 flex items-center justify-between p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b">
+        <div className="md:hidden sticky top-0 z-30 flex items-center justify-between p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
           <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
             <Menu size={20} />
           </button>
           <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-indigo-600 bg-clip-text text-transparent">SmartSplit</span>
-          <button onClick={handleLogout} className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold">
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleToggleTheme}
+              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button onClick={handleLogout} className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold">
+              Logout
+            </button>
+          </div>
         </div>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-8">

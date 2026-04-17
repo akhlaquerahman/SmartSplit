@@ -91,13 +91,47 @@
 }
 
 @layer base {
+  html {
+    color-scheme: light dark;
+  }
   * {
     border-color: hsl(var(--border));
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  input,
+  select,
+  textarea {
+    background-color: hsl(var(--input));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+    opacity: 1;
+  }
+  .sidebar-item {
+    color: inherit;
+  }
+  .sidebar-item:hover {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+  }
+  .sidebar-active {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+  html.dark .sidebar-item:hover {
+    background-color: hsl(var(--popover));
+  }
+  html.dark .sidebar-active {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
   }
 }
 

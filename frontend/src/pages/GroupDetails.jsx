@@ -37,6 +37,8 @@ const GroupDetails = () => {
   });
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [customShares, setCustomShares] = useState({});
+  const [expenseError, setExpenseError] = useState('');
+  const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
   const [settlementForm, setSettlementForm] = useState({
     receiverId: '',
     amount: '',
@@ -175,7 +177,21 @@ const GroupDetails = () => {
   const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!activeGroup) return;
-    const amount = parseFloat(expenseForm.amount) || 0;
+    setExpenseError('');
+    setIsSubmittingExpense(true);
+
+    const amount = parseFloat(expenseForm.amount);
+    if (!amount || amount <= 0) {
+      setExpenseError('Please enter a valid amount greater than zero.');
+      setIsSubmittingExpense(false);
+      return;
+    }
+
+    if (selectedParticipants.length === 0) {
+      setExpenseError('Please select at least one participant.');
+      setIsSubmittingExpense(false);
+      return;
+    }
 
     const splitDetails = selectedParticipants.map((userId) => ({
       user: userId,
@@ -186,6 +202,8 @@ const GroupDetails = () => {
 
     const splitSum = splitDetails.reduce((sum, item) => sum + item.amount, 0);
     if (Math.abs(splitSum - amount) > 0.1) {
+      setExpenseError('Split amount does not match total expense. Please adjust the shares.');
+      setIsSubmittingExpense(false);
       return;
     }
 
@@ -197,12 +215,18 @@ const GroupDetails = () => {
     });
 
     if (success) {
+      await fetchGroupDetails(id);
       setShowExpenseModal(false);
       setExpenseForm({ description: '', amount: '', category: 'General', splitType: 'equal' });
       setSelectedParticipants(activeGroup.members.map((member) => member.user._id));
       setCustomShares(activeGroup.members.reduce((acc, member) => ({ ...acc, [member.user._id]: '' }), {}));
       setTab('expenses');
+      setExpenseError('');
+    } else {
+      setExpenseError(error || 'Unable to add expense. Please try again.');
     }
+
+    setIsSubmittingExpense(false);
   };
 
   const handleAddMember = async () => {
@@ -790,6 +814,12 @@ const GroupDetails = () => {
                   </div>
                 )}
 
+                {expenseError && (
+                  <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-600 p-4 text-sm text-rose-700 dark:text-rose-200">
+                    {expenseError}
+                  </div>
+                )}
+
                 <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
                   <p className="text-sm font-semibold mb-3">Preview</p>
                   <div className="grid grid-cols-1 gap-3">
@@ -812,9 +842,10 @@ const GroupDetails = () => {
                   </button>
                   <button
                     type="submit"
-                    className="w-full px-4 py-4 rounded-2xl bg-primary-600 text-white font-bold shadow-lg shadow-primary-200 dark:shadow-none"
+                    disabled={isSubmittingExpense}
+                    className="w-full px-4 py-4 rounded-2xl bg-primary-600 text-white font-bold shadow-lg shadow-primary-200 dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save Expense
+                    {isSubmittingExpense ? 'Saving...' : 'Save Expense'}
                   </button>
                 </div>
               </form>

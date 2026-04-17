@@ -27,7 +27,7 @@ const Groups = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Groups</h1>
-          <p className="text-slate-500">Manage your groups and open any group to settle expenses.</p>
+          <p className="text-slate-500 dark:text-slate-400">Manage your groups and open any group to settle expenses.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -99,31 +99,31 @@ const Groups = () => {
             <h2 className="text-2xl font-bold mb-6">Create New Group</h2>
             <form onSubmit={handleCreateGroup} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Group Name</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">Group Name</label>
                 <input
                   type="text"
                   value={newGroup.name}
                   onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border focus:border-primary-500"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:border-primary-500"
                   placeholder="e.g. Summer Trip"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">Description</label>
                 <textarea
                   value={newGroup.description}
                   onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border focus:border-primary-500 h-24"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:border-primary-500 h-24"
                   placeholder="What is this group for?"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Category</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">Category</label>
                 <select
                   value={newGroup.category}
                   onChange={(e) => setNewGroup({ ...newGroup, category: e.target.value })}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border focus:border-primary-500"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:border-primary-500"
                 >
                   <option value="Trip">Trip</option>
                   <option value="Home">Home</option>
@@ -132,11 +132,11 @@ const Groups = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Country</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-200">Country</label>
                 <select
                   value={newGroup.country}
                   onChange={(e) => setNewGroup({ ...newGroup, country: e.target.value })}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border focus:border-primary-500"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:border-primary-500"
                 >
                   <option value="India">India</option>
                 </select>
