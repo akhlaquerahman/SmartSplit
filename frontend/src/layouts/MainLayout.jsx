@@ -12,7 +12,8 @@ import {
   PieChart,
   User as UserIcon,
   Moon,
-  Sun
+  Sun,
+  Shield
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -57,6 +58,7 @@ const MainLayout = ({ children }) => {
     { name: 'Groups', path: '/groups', icon: Users },
     { name: 'Reports', path: '/reports', icon: PieChart },
     { name: 'Profile', path: '/profile', icon: UserIcon },
+    ...(user?.role === 'admin' ? [{ name: 'Admin Panel', path: '/admin/dashboard', icon: Shield }] : []),
   ];
 
   return (

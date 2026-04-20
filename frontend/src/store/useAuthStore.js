@@ -149,6 +149,24 @@ const useAuthStore = create((set) => ({
     }
   },
 
+  changePassword: async (currentPassword, newPassword, confirmPassword) => {
+    set({ loading: true, error: null });
+    try {
+      await axios.post(`${API_URL}/change-password`, { 
+        currentPassword, 
+        newPassword, 
+        confirmPassword 
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      set({ loading: false });
+      return true;
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Password change failed', loading: false });
+      return false;
+    }
+  },
+
   logout: () => {
     set({ user: null, token: null });
     localStorage.removeItem('user');

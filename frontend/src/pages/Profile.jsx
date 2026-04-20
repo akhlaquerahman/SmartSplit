@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import useAuthStore from '../store/useAuthStore';
-import { User, Phone, Image, Lock, Loader2, Check, ShieldAlert, Camera } from 'lucide-react';
+import { User, Phone, Image, Lock, Loader2, Check, Camera, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Profile = () => {
-  const { user, updateProfile, requestPasswordOtp, verifyPasswordOtp, loading, error, clearError } = useAuthStore();
+  const { user, updateProfile, changePassword, loading, error, clearError } = useAuthStore();
   
   const [name, setName] = useState(user?.name || '');
   const [mobile, setMobile] = useState(user?.mobile || '');
@@ -13,9 +13,12 @@ const Profile = () => {
 
   // Password change states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -39,19 +42,14 @@ const Profile = () => {
     if (res) setSuccess('Profile updated successfully!');
   };
 
-  const handleRequestPasswordOtp = async () => {
-    const res = await requestPasswordOtp();
-    if (res) setOtpSent(true);
-  };
-
-  const handleVerifyPassword = async () => {
-    const res = await verifyPasswordOtp(otp, newPassword);
+  const handleChangePassword = async () => {
+    const res = await changePassword(currentPassword, newPassword, confirmPassword);
     if (res) {
-      setSuccess('Password updated successfully!');
+      setSuccess('Password changed successfully!');
       setShowPasswordModal(false);
-      setOtpSent(false);
-      setOtp('');
+      setCurrentPassword('');
       setNewPassword('');
+      setConfirmPassword('');
     }
   };
 
@@ -178,72 +176,102 @@ const Profile = () => {
               className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-8 shadow-2xl overflow-hidden relative"
             >
               <h2 className="text-2xl font-bold mb-2 dark:text-white">Change Password</h2>
-              <p className="text-slate-500 text-sm mb-6">Securing your account with email verification</p>
+              <p className="text-slate-500 text-sm mb-6">Enter your current password and choose a new one</p>
 
               {error && <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm mb-4">{error}</div>}
 
-              {!otpSent ? (
-                <div className="space-y-6">
-                  <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl flex gap-3 text-amber-700 dark:text-amber-400 text-sm">
-                    <ShieldAlert className="shrink-0" size={20} />
-                    <p>Changing your password will send a verification code to <b>{user.email}</b></p>
-                  </div>
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => setShowPasswordModal(false)}
-                      className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold"
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full pl-10 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                      placeholder="Enter current password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={handleRequestPasswordOtp}
-                      disabled={loading}
-                      className="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
-                    >
-                      {loading ? <Loader2 className="animate-spin" size={18} /> : 'Send OTP'}
+                      {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Code from Email</label>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                      type="text"
-                      maxLength="6"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      className="w-full text-center text-2xl font-bold py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="000000"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">New Password</label>
-                    <input
-                      type="password"
+                      type={showNewPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full py-3 px-4 bg-slate-50 dark:bg-slate-800 border-none rounded-xl outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="Min 6 characters"
+                      className="w-full pl-10 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                      placeholder="Enter new password"
                     />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <button 
-                      onClick={() => setOtpSent(false)}
-                      className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold"
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
-                      Back
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
-                    <button 
-                      onClick={handleVerifyPassword}
-                      disabled={loading || otp.length < 6 || newPassword.length < 6}
-                      className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">Must be at least 6 characters long</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full pl-10 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                      placeholder="Confirm new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
-                      {loading ? <Loader2 className="animate-spin" size={18} /> : 'Update Now'}
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
-              )}
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => {
+                      setShowPasswordModal(false);
+                      setCurrentPassword('');
+                      setNewPassword('');
+                      setConfirmPassword('');
+                    }}
+                    className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleChangePassword}
+                    disabled={loading || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword.length < 6}
+                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={18} /> : 'Change Password'}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
