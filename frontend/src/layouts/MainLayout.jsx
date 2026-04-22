@@ -77,21 +77,14 @@ const MainLayout = ({ children }) => {
               {!collapsed && <span className="text-xl font-bold text-primary-600 dark:text-white">SmartSplit</span>}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleToggleTheme}
-                  className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                >
-                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                </button>
-                <button
                   onClick={() => setCollapsed(!collapsed)}
-                  className="p-1 hover:bg-slate-100 rounded hidden md:inline-flex"
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded hidden md:inline-flex"
                 >
                   {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
                 </button>
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="p-1 hover:bg-slate-100 rounded inline-flex md:hidden"
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded inline-flex md:hidden"
                 >
                   <X size={20} />
                 </button>
@@ -118,32 +111,25 @@ const MainLayout = ({ children }) => {
           </div>
 
           <div className="p-4 border-t">
-            <Link to="/profile" className="sidebar-item flex items-center gap-3 mb-4 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-xl transition-all">
-              <img src={user?.avatar} alt={user?.name} className="w-10 h-10 rounded-full border shadow-sm group-hover:border-primary-500" />
-              {!collapsed && (
-                <div className="overflow-hidden">
-                  <p className="font-semibold text-sm truncate group-hover:text-primary-600 dark:group-hover:text-primary-300 dark:text-slate-100">{user?.name}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Settings</p>
-                </div>
-              )}
-            </Link>
-            <button 
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <LogOut size={20} />
-              {!collapsed && <span>Logout</span>}
-            </button>
+            <div className="text-center text-[10px] uppercase font-bold tracking-widest text-slate-400">
+              SmartSplit v1.0
+            </div>
           </div>
         </aside>
 
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden md:ml-0">
-          <div className="md:hidden sticky top-0 z-30 flex items-center justify-between p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-            <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-              <Menu size={20} />
-            </button>
-            <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-indigo-600 bg-clip-text text-transparent">SmartSplit</span>
-            <div className="flex items-center gap-2">
+          <div className="sticky top-0 z-30 flex items-center justify-between p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden">
+                <Menu size={20} />
+              </button>
+              <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-indigo-600 bg-clip-text text-transparent md:hidden">SmartSplit</span>
+              <div className="hidden md:block">
+                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">{location.pathname.split('/')[1] || 'Dashboard'}</h2>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleToggleTheme}
                 className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -151,8 +137,23 @@ const MainLayout = ({ children }) => {
               >
                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button onClick={handleLogout} className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold">
-                Logout
+
+              <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
+
+              <Link to="/profile" className="flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-xl transition-all">
+                <img src={user?.avatar} alt={user?.name} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm" />
+                <div className="hidden sm:block text-left">
+                  <p className="text-xs font-bold leading-tight">{user?.name?.split(' ')[0]}</p>
+                  <p className="text-[10px] text-slate-500 leading-tight italic">Profile</p>
+                </div>
+              </Link>
+
+              <button 
+                onClick={handleLogout} 
+                className="flex items-center gap-2 p-2 px-3 rounded-xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 text-sm font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-all active:scale-95"
+              >
+                <LogOut size={18} />
+                <span className="hidden lg:inline">Logout</span>
               </button>
             </div>
           </div>

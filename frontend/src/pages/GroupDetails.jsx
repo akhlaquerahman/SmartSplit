@@ -26,7 +26,7 @@ const GroupDetails = () => {
   } = useGroupStore();
   const { user: currentUser } = useAuthStore();
 
-  const [tab, setTab] = useState('expenses');
+  const [tab, setTab] = useState('overview');
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
