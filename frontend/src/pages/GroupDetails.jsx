@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import useAuthStore from '../store/useAuthStore';
-import { Plus, ChevronLeft, Receipt, CheckCircle, HandCoins, UserPlus, Info, ShieldCheck } from 'lucide-react';
+import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
+
+const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toFixed(2)}`;
 
 const GroupDetails = () => {
   const { id } = useParams();
@@ -76,16 +78,36 @@ const GroupDetails = () => {
     }
   }, [activeGroup, currentUser]);
 
-  const currentMemberBalance = useMemo(() => {
-    if (!activeGroup?.summary?.memberBalances) return 0;
-    const record = activeGroup.summary.memberBalances.find(
-      (member) => member.user.toString() === currentUser?._id
-    );
-    return record ? record.balance : 0;
-  }, [activeGroup, currentUser]);
+  const memberSummaries = useMemo(() => {
+    if (!activeGroup?.members || !activeGroup?.summary?.memberBalances) return [];
+
+    return activeGroup.members.map((member) => {
+      const memberId = member.user._id.toString();
+      const summaryRecord = activeGroup.summary.memberBalances.find((record) => {
+        const recordId = record.user?._id?.toString?.() || record.user?.toString?.();
+        return recordId === memberId;
+      });
+
+      return {
+        id: memberId,
+        name: member.user.name,
+        avatar: member.user.avatar,
+        role: member.role,
+        totalShare: summaryRecord?.totalShare || 0,
+        totalPaid: summaryRecord?.totalPaid || 0,
+        balance: summaryRecord?.balance || 0,
+        netBalance: summaryRecord?.netBalance || 0,
+        settlementPaid: summaryRecord?.settlementPaid || 0,
+        settlementReceived: summaryRecord?.settlementReceived || 0
+      };
+    });
+  }, [activeGroup]);
+
+  const currentMemberSummary = useMemo(() => (
+    memberSummaries.find((member) => member.id === currentUser?._id) || null
+  ), [memberSummaries, currentUser]);
 
   const totalExpense = activeGroup?.summary?.totalExpense ?? 0;
-  const costPerPerson = activeGroup?.members?.length ? totalExpense / activeGroup.members.length : 0;
   const pendingRequests = settlements.filter((settlement) => settlement.status === 'pending');
   const paidMostName = activeGroup?.summary?.paidMost
     ? activeGroup.members.find((member) => member.user._id === activeGroup.summary.paidMost.userId)?.user.name
@@ -128,57 +150,9 @@ const GroupDetails = () => {
     });
   }, [expenseForm.amount, expenseForm.splitType, selectedParticipants, customShares, activeGroup]);
 
-  const memberPayments = useMemo(() => {
-    if (!activeGroup) return [];
-
-    return activeGroup.members.map((member) => {
-      const memberId = member.user._id || member.user;
-      const paid = expenses.reduce((sum, expense) => {
-        const payerId = expense.paidBy?._id?.toString() || expense.paidBy?.toString();
-        return payerId === memberId.toString() ? sum + expense.amount : sum;
-      }, 0);
-      const balanceRecord = activeGroup.summary.memberBalances.find((record) => {
-        const recordId = record.user._id ? record.user._id.toString() : record.user.toString();
-        return recordId === memberId.toString();
-      });
-      return {
-        id: memberId.toString(),
-        name: member.user.name,
-        paid,
-        balance: balanceRecord?.balance || 0
-      };
-    });
-  }, [activeGroup, expenses]);
-
-  const currentMemberPaid = memberPayments.find((member) => member.id === currentUser?._id)?.paid || 0;
-  const currentMemberOwed = memberPayments.find((member) => member.id === currentUser?._id)?.balance || 0;
-
-  const settlementTotalsByMember = useMemo(() => {
-    if (!activeGroup) return [];
-    return activeGroup.members.map((member) => {
-      const memberId = member.user._id;
-      const completedSettlements = settlements.filter((settlement) => settlement.status === 'completed');
-      const received = completedSettlements.reduce((sum, settlement) => {
-        const receiverId = settlement.receiverId?._id?.toString() || settlement.receiverId?.toString();
-        return receiverId === memberId ? sum + settlement.amount : sum;
-      }, 0);
-      const given = completedSettlements.reduce((sum, settlement) => {
-        const payerId = settlement.payerId?._id?.toString() || settlement.payerId?.toString();
-        return payerId === memberId ? sum + settlement.amount : sum;
-      }, 0);
-      const expenseRecord = memberPayments.find((record) => record.id === memberId);
-      const spent = expenseRecord?.paid || 0;
-      const net = spent - costPerPerson;
-      return {
-        id: memberId,
-        name: member.user.name,
-        received,
-        given,
-        spent,
-        net,
-      };
-    });
-  }, [activeGroup, settlements, memberPayments, costPerPerson]);
+  const currentMemberPaid = currentMemberSummary?.totalPaid || 0;
+  const currentMemberShare = currentMemberSummary?.totalShare || 0;
+  const currentMemberBalance = currentMemberSummary?.netBalance || 0;
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -225,6 +199,7 @@ const GroupDetails = () => {
       ...expenseForm,
       amount,
       groupId: id,
+      participants: selectedParticipants,
       splitDetails
     });
 
@@ -315,8 +290,10 @@ const GroupDetails = () => {
   );
 
   const balanceLabel = currentMemberBalance < 0
-    ? `You owe ₹${Math.abs(currentMemberBalance).toFixed(2)}`
-    : `You are owed ₹${currentMemberBalance.toFixed(2)}`;
+    ? `You will pay ${formatCurrency(Math.abs(currentMemberBalance))}`
+    : currentMemberBalance > 0
+      ? `You will receive ${formatCurrency(currentMemberBalance)}`
+      : 'You are settled up';
 
   return (
     <div className="space-y-4 pb-24 md:pb-6">
@@ -358,15 +335,15 @@ const GroupDetails = () => {
           <div className="mt-8 grid gap-3 grid-cols-2 lg:grid-cols-5">
             <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total spent</p>
-              <p className="text-xl font-bold mt-1">₹{totalExpense.toFixed(0)}</p>
+              <p className="text-xl font-bold mt-1">{formatCurrency(totalExpense)}</p>
             </div>
             <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Paid by you</p>
-              <p className="text-xl font-bold mt-1 text-emerald-600">₹{currentMemberPaid.toFixed(0)}</p>
+              <p className="text-xl font-bold mt-1 text-emerald-600">{formatCurrency(currentMemberPaid)}</p>
             </div>
             <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{currentMemberOwed < 0 ? 'You owe' : 'Owed to you'}</p>
-              <p className={`text-xl font-bold mt-1 ${currentMemberOwed < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>₹{Math.abs(currentMemberOwed).toFixed(0)}</p>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Your share</p>
+              <p className="text-xl font-bold mt-1 text-slate-900 dark:text-slate-100">{formatCurrency(currentMemberShare)}</p>
             </div>
             <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Members</p>
@@ -413,19 +390,19 @@ const GroupDetails = () => {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
                   <p className="text-sm text-slate-500">Total expenses</p>
-                  <p className="mt-3 text-2xl font-bold">₹{totalExpense.toFixed(2)}</p>
+                  <p className="mt-3 text-2xl font-bold">{formatCurrency(totalExpense)}</p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
-                  <p className="text-sm text-slate-500">Average cost per person</p>
-                  <p className="mt-3 text-2xl font-bold">₹{costPerPerson.toFixed(2)}</p>
+                  <p className="text-sm text-slate-500">Outstanding to collect</p>
+                  <p className="mt-3 text-2xl font-bold">{formatCurrency(activeGroup.summary?.totalOwedToGroup || 0)}</p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
                   <p className="text-sm text-slate-500">Pending settlements</p>
                   <p className="mt-3 text-2xl font-bold">{pendingRequests.length}</p>
                 </div>
                 <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
-                  <p className="text-sm text-slate-500">Resolved settlements</p>
-                  <p className="mt-3 text-2xl font-bold">{settlements.filter((item) => item.status !== 'pending').length}</p>
+                  <p className="text-sm text-slate-500">Outstanding to pay</p>
+                  <p className="mt-3 text-2xl font-bold">{formatCurrency(activeGroup.summary?.totalOwed || 0)}</p>
                 </div>
               </div>
 
@@ -454,40 +431,40 @@ const GroupDetails = () => {
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-950 rounded-[2rem] p-6 md:p-8 border">
-              <h2 className="text-xl font-bold mb-4">Member settlement totals</h2>
-              <p className="text-slate-500 text-sm">Current received, given and net position for every member.</p>
+              <h2 className="text-xl font-bold mb-4">Per-user balances</h2>
+              <p className="text-slate-500 text-sm">Each card uses only the expenses a member actually participated in.</p>
               <div className="mt-6 space-y-4">
-                {settlementTotalsByMember.map((member) => {
-                  const totalOutflow = member.spent + member.given - member.received;
-                  const remaining = costPerPerson - totalOutflow;
-                  const isGiving = remaining > 0;
-                  const displayAmount = Math.abs(remaining);
-                  const netLabel = isGiving ? 'Net give' : 'Net receive';
+                {memberSummaries.map((member) => {
+                  const status = member.netBalance > 0 ? 'Receive' : member.netBalance < 0 ? 'Pay' : 'Settled';
+                  const statusColor = member.netBalance > 0
+                    ? 'text-emerald-600'
+                    : member.netBalance < 0
+                      ? 'text-rose-600'
+                      : 'text-slate-600';
+
                   return (
                     <div key={member.id} className="rounded-[1.5rem] bg-white dark:bg-slate-900 p-5 border shadow-sm">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-sm text-slate-500">{member.name}</p>
-                          <p className="mt-2 text-lg font-semibold">₹{displayAmount.toFixed(2)}</p>
+                          <p className={`mt-2 text-lg font-semibold ${statusColor}`}>
+                            {status === 'Settled' ? 'Settled up' : `${status} ${formatCurrency(Math.abs(member.netBalance))}`}
+                          </p>
                         </div>
-                        <div className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600">{netLabel}</div>
+                        <div className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-600">{status}</div>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-slate-600">
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-slate-600">
                         <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 p-3 border">
-                          <p className="text-slate-500">Received</p>
-                          <p className="mt-2 font-semibold text-emerald-600">₹{member.received.toFixed(2)}</p>
+                          <p className="text-slate-500">Total share</p>
+                          <p className="mt-2 font-semibold">{formatCurrency(member.totalShare)}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 p-3 border">
-                          <p className="text-slate-500">Given</p>
-                          <p className="mt-2 font-semibold text-rose-600">₹{member.given.toFixed(2)}</p>
+                          <p className="text-slate-500">Total paid</p>
+                          <p className="mt-2 font-semibold text-emerald-600">{formatCurrency(member.totalPaid)}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 p-3 border">
-                          <p className="text-slate-500">Spent</p>
-                          <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">₹{member.spent.toFixed(2)}</p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 p-3 border">
-                          <p className="text-slate-500">{isGiving ? 'Give' : 'Receive'}</p>
-                          <p className={`mt-2 font-semibold ${isGiving ? 'text-rose-600' : 'text-emerald-600'}`}>₹{displayAmount.toFixed(2)}</p>
+                          <p className="text-slate-500">Net balance</p>
+                          <p className={`mt-2 font-semibold ${statusColor}`}>{formatCurrency(Math.abs(member.netBalance))}</p>
                         </div>
                       </div>
                     </div>
@@ -580,21 +557,25 @@ const GroupDetails = () => {
                 )}
               </div>
               <div className="space-y-3">
-                {activeGroup.members.map((member) => {
-                  const memberBalance = activeGroup.summary.memberBalances.find((record) => record.user.toString() === member.user._id)?.balance || 0;
+                {memberSummaries.map((member) => {
+                  const status = member.netBalance > 0 ? 'Will receive' : member.netBalance < 0 ? 'Will pay' : 'Settled';
                   return (
-                    <div key={member.user._id} className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 dark:bg-slate-950 p-4 border">
+                    <div key={member.id} className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 dark:bg-slate-950 p-4 border">
                       <div className="flex items-center gap-3">
-                        <img src={member.user.avatar} className="w-12 h-12 rounded-full" />
+                        <img src={member.avatar} className="w-12 h-12 rounded-full" />
                         <div>
-                          <p className="font-semibold">{member.user.name}</p>
+                          <p className="font-semibold">{member.name}</p>
                           <p className="text-xs text-slate-500">{member.role === 'admin' ? 'Admin' : 'Member'}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{memberBalance >= 0 ? `₹${memberBalance.toFixed(2)} owed` : `Owes ₹${Math.abs(memberBalance).toFixed(2)}`}</p>
-                        {isAdmin && member.user._id !== currentUser._id && (
-                          <button onClick={() => removeMember(activeGroup._id, member.user._id)} className="mt-2 text-xs text-red-500 hover:underline">Remove</button>
+                      <div className="text-right text-sm">
+                        <p className="font-semibold">Share: {formatCurrency(member.totalShare)}</p>
+                        <p className="text-emerald-600">Paid: {formatCurrency(member.totalPaid)}</p>
+                        <p className={member.netBalance < 0 ? 'text-rose-600' : 'text-emerald-600'}>
+                          {status}: {formatCurrency(Math.abs(member.netBalance))}
+                        </p>
+                        {isAdmin && member.id !== currentUser._id && (
+                          <button onClick={() => removeMember(activeGroup._id, member.id)} className="mt-2 text-xs text-red-500 hover:underline">Remove</button>
                         )}
                       </div>
                     </div>
@@ -688,36 +669,26 @@ const GroupDetails = () => {
                   <p className="mt-2 text-2xl font-bold">{settlements.filter((item) => item.status !== 'pending').length}</p>
                 </div>
                 <div className="rounded-3xl bg-white dark:bg-slate-900 p-5 border">
-                  <p className="text-sm text-slate-500">Total cost per person</p>
-                  <p className="mt-2 text-2xl font-bold">₹{activeGroup.members.length ? (totalExpense / activeGroup.members.length).toFixed(2) : '0.00'}</p>
-                  <p className="mt-2 text-xs text-slate-500">Average cost across all group members</p>
+                  <p className="text-sm text-slate-500">Your net position</p>
+                  <p className="mt-2 text-2xl font-bold">{balanceLabel}</p>
+                  <p className="mt-2 text-xs text-slate-500">Based on participant shares, total paid, and completed settlements.</p>
                 </div>
                 <div className="rounded-3xl bg-white dark:bg-slate-900 p-5 border">
-                  <p className="text-sm text-slate-500">Member settlement totals</p>
+                  <p className="text-sm text-slate-500">Settlement table</p>
                   <div className="mt-4 space-y-3">
-                    {settlementTotalsByMember.map((member) => {
-                      const remaining = costPerPerson - (member.spent + member.given - member.received);
-                      const remainingLabel = remaining > 0 ? 'Give' : 'Receive';
-                      const remainingValue = Math.abs(remaining).toFixed(2);
+                    {memberSummaries.map((member) => {
+                      const action = member.netBalance > 0 ? 'Receive' : member.netBalance < 0 ? 'Pay' : 'Settled';
                       return (
                         <div key={member.id} className="rounded-2xl bg-slate-50 dark:bg-slate-950 p-4 border">
                           <p className="font-semibold">{member.name}</p>
-                          <div className="mt-2 grid grid-cols-4 gap-3 text-sm text-slate-600">
+                          <div className="mt-2 grid grid-cols-2 gap-3 text-sm text-slate-600">
                             <div>
-                              <p className="text-slate-500">Received</p>
-                              <p className="font-semibold text-emerald-600">₹{member.received.toFixed(2)}</p>
+                              <p className="text-slate-500">Action</p>
+                              <p className={`font-semibold ${member.netBalance < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{action}</p>
                             </div>
                             <div>
-                              <p className="text-slate-500">Given</p>
-                              <p className="font-semibold text-rose-600">₹{member.given.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-slate-500">Spent</p>
-                              <p className="font-semibold text-slate-700">₹{member.spent.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-slate-500">{remainingLabel}</p>
-                              <p className={`font-semibold ${remaining > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>₹{remainingValue}</p>
+                              <p className="text-slate-500">Amount</p>
+                              <p className={`font-semibold ${member.netBalance < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(member.netBalance))}</p>
                             </div>
                           </div>
                         </div>
