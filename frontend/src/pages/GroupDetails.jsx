@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import useAuthStore from '../store/useAuthStore';
-import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info } from 'lucide-react';
+import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 
@@ -35,7 +35,9 @@ const GroupDetails = () => {
     description: '',
     amount: '',
     category: 'General',
-    splitType: 'equal'
+    splitType: 'equal',
+    paidBy: '',
+    receipt: ''
   });
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [customShares, setCustomShares] = useState({});
@@ -58,8 +60,20 @@ const GroupDetails = () => {
     };
     reader.readAsDataURL(file);
   };
+  
+  const handleReceiptUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setExpenseForm((prev) => ({ ...prev, receipt: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const [settlementError, setSettlementError] = useState('');
   const [selectedSettlement, setSelectedSettlement] = useState(null);
+  const [viewReceiptUrl, setViewReceiptUrl] = useState(null);
 
   useEffect(() => {
     fetchGroupDetails(id);
@@ -74,6 +88,11 @@ const GroupDetails = () => {
       setSettlementForm((prev) => ({
         ...prev,
         receiverId: ids.find((userId) => userId !== currentUser?._id) || ids[0] || ''
+      }));
+      setExpenseForm((prev) => ({
+        ...prev,
+        paidBy: '',
+        receipt: ''
       }));
     }
   }, [activeGroup, currentUser]);
@@ -108,7 +127,9 @@ const GroupDetails = () => {
   ), [memberSummaries, currentUser]);
 
   const totalExpense = activeGroup?.summary?.totalExpense ?? 0;
-  const pendingRequests = settlements.filter((settlement) => settlement.status === 'pending');
+  const sortedExpenses = useMemo(() => [...expenses].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [expenses]);
+  const sortedSettlements = useMemo(() => [...settlements].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [settlements]);
+  const pendingRequests = sortedSettlements.filter((settlement) => settlement.status === 'pending');
   const paidMostName = activeGroup?.summary?.paidMost
     ? activeGroup.members.find((member) => member.user._id === activeGroup.summary.paidMost.userId)?.user.name
     : 'No activity yet';
@@ -173,6 +194,12 @@ const GroupDetails = () => {
       return;
     }
 
+    if (!expenseForm.paidBy) {
+      setExpenseError('Please select who paid for this expense.');
+      setIsSubmittingExpense(false);
+      return;
+    }
+
     const baseShare = Number((amount / selectedParticipants.length).toFixed(2));
     const splitDetails = selectedParticipants.map((userId, index) => {
       let shareAmount;
@@ -205,7 +232,14 @@ const GroupDetails = () => {
 
     if (success) {
       setShowExpenseModal(false);
-      setExpenseForm({ description: '', amount: '', category: 'General', splitType: 'equal' });
+      setExpenseForm({ 
+        description: '', 
+        amount: '', 
+        category: 'General', 
+        splitType: 'equal', 
+        paidBy: '',
+        receipt: ''
+      });
       setSelectedParticipants(activeGroup.members.map((member) => member.user._id));
       setCustomShares(activeGroup.members.reduce((acc, member) => ({ ...acc, [member.user._id]: '' }), {}));
       setTab('expenses');
@@ -333,25 +367,25 @@ const GroupDetails = () => {
           </div>
 
           <div className="mt-8 grid gap-3 grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
+            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total spent</p>
-              <p className="text-xl font-bold mt-1">{formatCurrency(totalExpense)}</p>
+              <p className="text-lg md:text-xl font-bold mt-1">{formatCurrency(totalExpense)}</p>
             </div>
-            <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
+            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Paid by you</p>
-              <p className="text-xl font-bold mt-1 text-emerald-600">{formatCurrency(currentMemberPaid)}</p>
+              <p className="text-lg md:text-xl font-bold mt-1 text-emerald-600">{formatCurrency(currentMemberPaid)}</p>
             </div>
-            <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
+            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Your share</p>
-              <p className="text-xl font-bold mt-1 text-slate-900 dark:text-slate-100">{formatCurrency(currentMemberShare)}</p>
+              <p className="text-lg md:text-xl font-bold mt-1 text-slate-900 dark:text-slate-100">{formatCurrency(currentMemberShare)}</p>
             </div>
-            <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
+            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Members</p>
-              <p className="text-xl font-bold mt-1">{activeGroup.members.length}</p>
+              <p className="text-lg md:text-xl font-bold mt-1">{activeGroup.members.length}</p>
             </div>
-            <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border col-span-2 lg:col-span-1">
+            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border col-span-2 lg:col-span-1">
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Pending</p>
-              <p className="text-xl font-bold mt-1">{pendingRequests.length}</p>
+              <p className="text-lg md:text-xl font-bold mt-1">{pendingRequests.length}</p>
             </div>
           </div>
 
@@ -387,22 +421,22 @@ const GroupDetails = () => {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
-                  <p className="text-sm text-slate-500">Total expenses</p>
-                  <p className="mt-3 text-2xl font-bold">{formatCurrency(totalExpense)}</p>
+              <div className="grid gap-3 md:gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
+                  <p className="text-xs md:text-sm text-slate-500">Total expenses</p>
+                  <p className="mt-2 md:mt-3 text-xl md:text-2xl font-bold">{formatCurrency(totalExpense)}</p>
                 </div>
-                <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
-                  <p className="text-sm text-slate-500">Outstanding to collect</p>
-                  <p className="mt-3 text-2xl font-bold">{formatCurrency(activeGroup.summary?.totalOwedToGroup || 0)}</p>
+                <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
+                  <p className="text-xs md:text-sm text-slate-500">Outstanding to collect</p>
+                  <p className="mt-2 md:mt-3 text-xl md:text-2xl font-bold">{formatCurrency(activeGroup.summary?.totalOwedToGroup || 0)}</p>
                 </div>
-                <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
-                  <p className="text-sm text-slate-500">Pending settlements</p>
-                  <p className="mt-3 text-2xl font-bold">{pendingRequests.length}</p>
+                <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
+                  <p className="text-xs md:text-sm text-slate-500">Pending settlements</p>
+                  <p className="mt-2 md:mt-3 text-xl md:text-2xl font-bold">{pendingRequests.length}</p>
                 </div>
-                <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
-                  <p className="text-sm text-slate-500">Outstanding to pay</p>
-                  <p className="mt-3 text-2xl font-bold">{formatCurrency(activeGroup.summary?.totalOwed || 0)}</p>
+                <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
+                  <p className="text-xs md:text-sm text-slate-500">Outstanding to pay</p>
+                  <p className="mt-2 md:mt-3 text-xl md:text-2xl font-bold">{formatCurrency(activeGroup.summary?.totalOwed || 0)}</p>
                 </div>
               </div>
 
@@ -486,23 +520,36 @@ const GroupDetails = () => {
                 <button onClick={() => setShowExpenseModal(true)} className="rounded-2xl bg-primary-600 text-white px-4 py-2 font-semibold">Add Expense</button>
               </div>
               <div className="space-y-4">
-                {expenses.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center text-slate-400">
+                {sortedExpenses.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-slate-200 p-8 md:p-12 text-center text-slate-400">
                     <Receipt size={40} className="mx-auto mb-4" />
                     No expenses recorded yet.
                   </div>
                 ) : (
-                  expenses.map((expense) => (
-                    <div key={expense._id} className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
-                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  sortedExpenses.map((expense) => (
+                    <div key={expense._id} className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
+                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4">
                         <div>
-                          <p className="text-sm text-slate-500">{new Date(expense.createdAt).toLocaleDateString()}</p>
+                          <p className="text-xs md:text-sm text-slate-500">{new Date(expense.createdAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true })}</p>
                           <p className="font-semibold">{expense.description}</p>
-                          <p className="text-xs text-slate-400">Paid by {expense.paidBy?.name === currentUser?.name ? 'You' : expense.paidBy?.name}</p>
+                          <p className="text-[10px] md:text-xs text-slate-400">
+                            Paid by {expense.paidBy?.name === currentUser?.name ? 'You' : expense.paidBy?.name}
+                            {expense.addedBy && expense.addedBy?._id !== expense.paidBy?._id && (
+                              <span className="ml-1 opacity-75">• Added by {expense.addedBy?.name === currentUser?.name ? 'You' : expense.addedBy?.name}</span>
+                            )}
+                          </p>
                         </div>
                         <div className="text-right md:text-left">
                           <p className="text-lg font-semibold">₹{expense.amount.toFixed(2)}</p>
-                          <p className="text-xs text-slate-500">{expense.category || 'General'}</p>
+                          <p className="text-xs text-slate-500 mb-2">{expense.category || 'General'}</p>
+                          {expense.receipt && (
+                            <button
+                              onClick={() => setViewReceiptUrl(expense.receipt)}
+                              className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-full text-xs font-semibold hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                            >
+                              <Image size={12} /> View Proof
+                            </button>
+                          )}
                         </div>
                       </div>
                       {expense.splitDetails?.length > 0 && (
@@ -610,17 +657,17 @@ const GroupDetails = () => {
                 <button onClick={() => setShowSettlementModal(true)} className="rounded-2xl bg-primary-600 text-white px-4 py-2 font-semibold">New request</button>
               </div>
               <div className="space-y-4">
-                {settlements.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200 p-12 text-center text-slate-400">
+                {sortedSettlements.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-slate-200 p-8 md:p-12 text-center text-slate-400">
                     <HandCoins size={40} className="mx-auto mb-4" />
                     No settlement requests yet.
                   </div>
                 ) : (
-                  settlements.map((settlement) => (
-                    <div key={settlement._id} className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
-                      <div className="flex items-start justify-between gap-4">
+                  sortedSettlements.map((settlement) => (
+                    <div key={settlement._id} className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
+                      <div className="flex items-start justify-between gap-2 md:gap-4">
                         <div>
-                          <p className="text-sm text-slate-500">{new Date(settlement.createdAt).toLocaleDateString()}</p>
+                          <p className="text-xs md:text-sm text-slate-500">{new Date(settlement.createdAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true })}</p>
                           <p className="font-semibold">{settlement.status === 'pending' ? 'Pending payment' : settlement.status === 'completed' ? 'Accepted' : 'Declined'}</p>
                           <p className="text-sm text-slate-500">{settlement.note || 'No description'}</p>
                         </div>
@@ -725,6 +772,22 @@ const GroupDetails = () => {
                     required
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Paid By</label>
+                  <select
+                    value={expenseForm.paidBy}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, paidBy: e.target.value })}
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                    required
+                  >
+                    <option value="" disabled>Select who paid</option>
+                    {activeGroup.members.map((member) => (
+                      <option key={member.user._id} value={member.user._id}>
+                        {member.user.name} {member.user._id === currentUser?._id ? '(You)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Amount</label>
@@ -748,6 +811,34 @@ const GroupDetails = () => {
                       <option value="equal">Equal</option>
                       <option value="unequal">Custom</option>
                     </select>
+                  </div>
+                </div>
+                
+                <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center hover:border-primary-500 transition-colors relative overflow-hidden group">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReceiptUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex flex-col items-center justify-center pointer-events-none">
+                    {expenseForm.receipt ? (
+                      <>
+                        <div className="relative w-16 h-16 rounded-xl overflow-hidden mb-2 border">
+                          <img src={expenseForm.receipt} alt="Receipt preview" className="w-full h-full object-cover" />
+                        </div>
+                        <p className="text-sm font-semibold text-primary-600">Proof attached</p>
+                        <p className="text-xs text-slate-500 mt-1">Click to change</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/30 transition-colors">
+                          <UploadCloud size={24} className="text-slate-400 group-hover:text-primary-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Upload payment proof</p>
+                        <p className="text-xs text-slate-500 mt-1">Optional (Image max 5MB)</p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -952,6 +1043,28 @@ const GroupDetails = () => {
                 )}
                 <button onClick={handleCreateSettlement} className="w-full rounded-2xl bg-primary-600 text-white py-4 font-semibold">Send payment request</button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {viewReceiptUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setViewReceiptUrl(null)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-3xl w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setViewReceiptUrl(null)}
+                className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+              <img src={viewReceiptUrl} alt="Expense Proof" className="w-full max-h-[80vh] object-contain rounded-2xl bg-black/50" />
             </motion.div>
           </div>
         )}
