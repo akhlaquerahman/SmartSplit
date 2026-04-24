@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import useAuthStore from '../store/useAuthStore';
+import axios from 'axios';
 import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -37,13 +38,15 @@ const GroupDetails = () => {
     category: 'General',
     splitType: 'equal',
     paidBy: '',
-    receipt: ''
+    receipt: '',
+    paymentMethod: 'UPI'
   });
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [customShares, setCustomShares] = useState({});
   const [expenseError, setExpenseError] = useState('');
   const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
   const [settlementForm, setSettlementForm] = useState({
+    payerId: '',
     receiverId: '',
     amount: '',
     paymentType: 'UPI',
@@ -74,6 +77,50 @@ const GroupDetails = () => {
   const [settlementError, setSettlementError] = useState('');
   const [selectedSettlement, setSelectedSettlement] = useState(null);
   const [viewReceiptUrl, setViewReceiptUrl] = useState(null);
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [removingMember, setRemovingMember] = useState(null);
+
+  useEffect(() => {
+    if (showAddMember && !memberEmail) {
+      fetchFriends();
+    }
+  }, [showAddMember]);
+
+  useEffect(() => {
+    if (!showAddMember || !memberEmail) return;
+    
+    const delayDebounceFn = setTimeout(() => {
+      fetchFriends(memberEmail);
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [memberEmail, showAddMember]);
+
+  const availableFriends = useMemo(() => {
+    if (!friends || !activeGroup?.members) return [];
+    return friends.filter(f => !activeGroup.members.some(m => {
+      const mId = m.user?._id?.toString() || m.user?.toString();
+      const fId = f._id?.toString();
+      return mId === fId;
+    }));
+  }, [friends, activeGroup]);
+
+  const fetchFriends = async (search = '') => {
+    setFriendsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/groups/friends`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { search }
+      });
+      setFriends(response.data);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    } finally {
+      setFriendsLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchGroupDetails(id);
@@ -87,6 +134,7 @@ const GroupDetails = () => {
       setCustomShares(initialShares);
       setSettlementForm((prev) => ({
         ...prev,
+        payerId: currentUser?._id || '',
         receiverId: ids.find((userId) => userId !== currentUser?._id) || ids[0] || ''
       }));
       setExpenseForm((prev) => ({
@@ -238,7 +286,8 @@ const GroupDetails = () => {
         category: 'General', 
         splitType: 'equal', 
         paidBy: '',
-        receipt: ''
+        receipt: '',
+        paymentMethod: 'UPI'
       });
       setSelectedParticipants(activeGroup.members.map((member) => member.user._id));
       setCustomShares(activeGroup.members.reduce((acc, member) => ({ ...acc, [member.user._id]: '' }), {}));
@@ -275,6 +324,7 @@ const GroupDetails = () => {
     setSettlementError('');
     const success = await createSettlement({
       groupId: activeGroup._id,
+      payerId: settlementForm.payerId,
       receiverId: settlementForm.receiverId,
       amount,
       paymentType: settlementForm.paymentType,
@@ -283,7 +333,7 @@ const GroupDetails = () => {
     });
     if (success) {
       setShowSettlementModal(false);
-      setSettlementForm({ receiverId: '', amount: '', paymentType: 'UPI', screenshot: '', note: '' });
+      setSettlementForm({ payerId: currentUser?._id || '', receiverId: '', amount: '', paymentType: 'UPI', screenshot: '', note: '' });
     } else {
       setSettlementError(error || 'Failed to send settlement request.');
     }
@@ -541,7 +591,7 @@ const GroupDetails = () => {
                         </div>
                         <div className="text-right md:text-left">
                           <p className="text-lg font-semibold">₹{expense.amount.toFixed(2)}</p>
-                          <p className="text-xs text-slate-500 mb-2">{expense.category || 'General'}</p>
+                          <p className="text-xs text-slate-500 mb-2">{expense.category || 'General'} • {expense.paymentMethod || 'UPI'}</p>
                           {expense.receipt && (
                             <button
                               onClick={() => setViewReceiptUrl(expense.receipt)}
@@ -622,7 +672,7 @@ const GroupDetails = () => {
                           {status}: {formatCurrency(Math.abs(member.netBalance))}
                         </p>
                         {isAdmin && member.id !== currentUser._id && (
-                          <button onClick={() => removeMember(activeGroup._id, member.id)} className="mt-2 text-xs text-red-500 hover:underline">Remove</button>
+                          <button onClick={() => setRemovingMember(member)} className="mt-2 text-xs text-red-500 hover:underline">Remove</button>
                         )}
                       </div>
                     </div>
@@ -670,6 +720,12 @@ const GroupDetails = () => {
                           <p className="text-xs md:text-sm text-slate-500">{new Date(settlement.createdAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true })}</p>
                           <p className="font-semibold">{settlement.status === 'pending' ? 'Pending payment' : settlement.status === 'completed' ? 'Accepted' : 'Declined'}</p>
                           <p className="text-sm text-slate-500">{settlement.note || 'No description'}</p>
+                          <p className="text-[10px] md:text-xs text-slate-400 mt-1">
+                            {settlement.payerId?.name === currentUser?.name ? 'You' : settlement.payerId?.name} paid {settlement.receiverId?.name === currentUser?.name ? 'You' : settlement.receiverId?.name}
+                            {settlement.addedBy && settlement.addedBy?._id !== (settlement.payerId?._id || settlement.payerId) && (
+                              <span className="ml-1 opacity-75">• Added by {settlement.addedBy?.name === currentUser?.name ? 'You' : settlement.addedBy?.name}</span>
+                            )}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-semibold">₹{settlement.amount.toFixed(2)}</p>
@@ -810,6 +866,17 @@ const GroupDetails = () => {
                     >
                       <option value="equal">Equal</option>
                       <option value="unequal">Custom</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Payment Method</label>
+                    <select
+                      value={expenseForm.paymentMethod}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                    >
+                      <option value="UPI">UPI</option>
+                      <option value="CASH">Cash</option>
                     </select>
                   </div>
                 </div>
@@ -969,10 +1036,19 @@ const GroupDetails = () => {
 
               <div className="space-y-4 overflow-y-auto pr-1 max-h-[calc(100vh-16rem)]">
                 <div>
-                  <p className="text-sm text-slate-500 mb-2">Payer</p>
-                  <div className="rounded-2xl border bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-700 dark:text-slate-200">
-                    {currentUser?.name} (You)
-                  </div>
+                  <label className="block text-sm font-medium mb-2">Who is paying?</label>
+                  <select
+                    value={settlementForm.payerId}
+                    onChange={(e) => setSettlementForm({ ...settlementForm, payerId: e.target.value })}
+                    className="w-full p-4 rounded-2xl border bg-slate-50 dark:bg-slate-950 outline-none"
+                  >
+                    <option value="">Choose payer</option>
+                    {activeGroup.members.map((member) => (
+                      <option key={member.user?._id} value={member.user?._id}>
+                        {member.user?.name} {member.user?._id === currentUser?._id ? '(You)' : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Select the member you will give money to</label>
@@ -983,7 +1059,7 @@ const GroupDetails = () => {
                   >
                     <option value="">Choose member</option>
                     {activeGroup.members
-                      .filter((member) => member.user?._id !== currentUser?._id)
+                      .filter((member) => member.user?._id !== settlementForm.payerId)
                       .map((member) => (
                         <option key={member.user?._id} value={member.user?._id}>{member.user?.name}</option>
                       ))}
@@ -1042,6 +1118,102 @@ const GroupDetails = () => {
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
                 )}
                 <button onClick={handleCreateSettlement} className="w-full rounded-2xl bg-primary-600 text-white py-4 font-semibold">Send payment request</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAddMember && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddMember(false)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b flex items-center justify-between">
+                <h3 className="text-xl font-bold">Add Group Member</h3>
+                <button onClick={() => setShowAddMember(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Invite by Email</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={memberEmail}
+                      onChange={(e) => setMemberEmail(e.target.value)}
+                      placeholder="friend@example.com"
+                      className="flex-1 p-3 rounded-xl border bg-slate-50 dark:bg-slate-950 outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                    <button 
+                      onClick={() => {
+                        addMember(id, memberEmail);
+                        setMemberEmail('');
+                        setShowAddMember(false);
+                      }}
+                      className="bg-primary-600 text-white px-4 py-2 rounded-xl font-bold"
+                    >
+                      Invite
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    {memberEmail.length >= 2 ? 'Search Results' : 'Select from Friends'}
+                  </label>
+                  {friendsLoading ? (
+                    <div className="text-center py-4 text-slate-500 text-sm flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600" />
+                      Searching...
+                    </div>
+                  ) : friends.length === 0 ? (
+                    <div className="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed">
+                      <p className="text-slate-500 text-sm px-4">
+                        {memberEmail.length >= 2 
+                          ? `No users found matching "${memberEmail}"` 
+                          : "No friends found yet. Try searching by name or email above!"}
+                      </p>
+                    </div>
+                  ) : availableFriends.length === 0 ? (
+                    <div className="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed">
+                      <p className="text-slate-500 text-sm px-4">
+                        All your friends are already members of this group!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2">
+                      {availableFriends.map((friend) => (
+                        <button
+                          key={friend._id}
+                          onClick={() => {
+                            addMember(id, friend.email);
+                            setShowAddMember(false);
+                          }}
+                          className="flex items-center gap-3 p-3 rounded-2xl border hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-500 transition-all text-left group"
+                        >
+                          <img src={friend.avatar} className="w-10 h-10 rounded-full border shadow-sm" alt="" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm truncate">{friend.name}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{friend.email}</p>
+                          </div>
+                          <Plus size={16} className="text-slate-300 group-hover:text-primary-600" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-slate-950 border-t">
+                <button onClick={() => setShowAddMember(false)} className="w-full py-3 bg-white dark:bg-slate-800 border rounded-xl font-bold">Cancel</button>
               </div>
             </motion.div>
           </div>
@@ -1116,6 +1288,10 @@ const GroupDetails = () => {
                     <p className="text-sm text-slate-500">Note</p>
                     <p className="mt-3 text-slate-700 dark:text-slate-200">{selectedSettlement.note || 'No note provided'}</p>
                   </div>
+                  <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
+                    <p className="text-sm text-slate-500">Added by</p>
+                    <p className="mt-3 font-semibold">{selectedSettlement.addedBy?.name || 'Unknown'}</p>
+                  </div>
                 </div>
               </div>
 
@@ -1125,6 +1301,48 @@ const GroupDetails = () => {
                   <img src={selectedSettlement.screenshot} alt="Settlement screenshot" className="w-full rounded-3xl object-cover" />
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {removingMember && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setRemovingMember(null)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/30 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <UserPlus size={32} className="rotate-45" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Remove Member?</h3>
+              <p className="text-slate-500 text-sm mb-8">
+                Are you sure you want to remove <span className="font-bold text-slate-900 dark:text-slate-100">{removingMember.name}</span> from the group?
+                Their expenses and settlements will remain, but they won't be able to participate in new ones.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setRemovingMember(null)}
+                  className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={async () => {
+                    const success = await removeMember(activeGroup._id, removingMember.id);
+                    if (success) {
+                      setRemovingMember(null);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold shadow-lg shadow-rose-200 dark:shadow-none"
+                >
+                  Remove
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

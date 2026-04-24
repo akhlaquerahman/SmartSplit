@@ -16,6 +16,7 @@ import {
   Sun,
   Shield
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 
 const MainLayout = ({ children }) => {
@@ -56,6 +57,7 @@ const MainLayout = ({ children }) => {
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Groups', path: '/groups', icon: Users },
+    { name: 'Friends', path: '/friends', icon: UserIcon },
     { name: 'Reports', path: '/reports', icon: PieChart },
     { name: 'Profile', path: '/profile', icon: UserIcon },
     ...(user?.role === 'admin' ? [{ name: 'Admin Panel', path: '/admin/dashboard', icon: Shield }] : []),
@@ -63,8 +65,8 @@ const MainLayout = ({ children }) => {
 
   return (
     <div className={cn(
-      'min-h-screen flex flex-col transition-colors duration-300',
-      theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      'min-h-screen flex flex-col transition-colors duration-500',
+      theme === 'dark' ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'
     )}>
       <div className="flex flex-1 overflow-hidden">
         <aside className={cn(
@@ -97,14 +99,23 @@ const MainLayout = ({ children }) => {
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    "sidebar-item flex items-center gap-3 p-3 rounded-lg transition-colors",
+                    "group flex items-center gap-3 p-4 rounded-2xl transition-all duration-300 relative",
                     location.pathname === item.path 
-                      ? "sidebar-active bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100" 
-                      : "text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                      ? "bg-primary-600 text-white shadow-lg shadow-primary-500/30 font-bold" 
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100"
                   )}
                 >
-                  <item.icon size={22} />
-                  {!collapsed && <span>{item.name}</span>}
+                  <item.icon size={22} className={cn(
+                    "transition-transform duration-300",
+                    location.pathname === item.path ? "scale-110" : "group-hover:scale-110"
+                  )} />
+                  {!collapsed && <span className="tracking-wide">{item.name}</span>}
+                  {location.pathname === item.path && !collapsed && (
+                    <motion.div 
+                      layoutId="sidebar-active-indicator"
+                      className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full"
+                    />
+                  )}
                 </Link>
               ))}
             </nav>
@@ -171,14 +182,23 @@ const MainLayout = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 p-2 px-6 rounded-2xl transition-all active:scale-90",
+                  "flex flex-col items-center gap-1 p-1.5 xs:p-2 xs:px-4 rounded-2xl transition-all duration-300 relative",
                   location.pathname === item.path 
-                    ? "text-primary-600 bg-primary-50 dark:bg-primary-500/10" 
-                    : "text-slate-400"
+                    ? "text-primary-600 font-bold" 
+                    : "text-slate-500 dark:text-slate-400"
                 )}
               >
-                <item.icon size={22} className={cn(location.pathname === item.path && "scale-110")} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">{item.name}</span>
+                {location.pathname === item.path && (
+                  <motion.div 
+                    layoutId="mobile-nav-active"
+                    className="absolute inset-0 bg-primary-50 dark:bg-primary-500/10 rounded-2xl -z-10"
+                  />
+                )}
+                <item.icon size={18} className={cn(
+                  "xs:size-[22px] transition-transform duration-300",
+                  location.pathname === item.path && "scale-110 -translate-y-0.5"
+                )} />
+                <span className="text-[9px] xs:text-[10px] font-black uppercase tracking-tighter xs:tracking-widest">{item.name}</span>
               </Link>
             ))}
           </nav>

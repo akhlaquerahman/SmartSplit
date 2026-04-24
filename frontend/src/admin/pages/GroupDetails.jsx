@@ -165,12 +165,12 @@ const GroupDetails = () => {
                 <div className="flex items-center">
                   <img
                     className="h-8 w-8 rounded-full mr-3"
-                    src={expense.paidBy.avatar}
-                    alt={expense.paidBy.name}
+                    src={expense.paidBy?.avatar}
+                    alt={expense.paidBy?.name}
                   />
                   <div>
                     <p className="text-sm font-medium text-gray-900">{expense.description}</p>
-                    <p className="text-sm text-gray-500">Paid by {expense.paidBy.name}</p>
+                    <p className="text-sm text-gray-500">Paid by {expense.paidBy?.name}</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -203,19 +203,19 @@ const GroupDetails = () => {
                   <div className="flex items-center">
                     <img
                       className="h-6 w-6 rounded-full mr-2"
-                      src={settlement.payerId.avatar}
-                      alt={settlement.payerId.name}
+                      src={settlement.payerId?.avatar}
+                      alt={settlement.payerId?.name}
                     />
-                    <span className="text-sm text-gray-900">{settlement.payerId.name}</span>
+                    <span className="text-sm text-gray-900">{settlement.payerId?.name}</span>
                   </div>
                   <span className="text-gray-400">→</span>
                   <div className="flex items-center">
                     <img
                       className="h-6 w-6 rounded-full mr-2"
-                      src={settlement.receiverId.avatar}
-                      alt={settlement.receiverId.name}
+                      src={settlement.receiverId?.avatar}
+                      alt={settlement.receiverId?.name}
                     />
-                    <span className="text-sm text-gray-900">{settlement.receiverId.name}</span>
+                    <span className="text-sm text-gray-900">{settlement.receiverId?.name}</span>
                   </div>
                 </div>
                 <div className="text-right">

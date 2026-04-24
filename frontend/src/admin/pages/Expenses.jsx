@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Filter, Eye, Calendar, DollarSign } from 'lucide-react';
+import { Search, Filter, Eye, Calendar, DollarSign, Image, X } from 'lucide-react';
 
 const Expenses = () => {
   const [expenses, setExpenses] = useState([]);
@@ -11,6 +11,7 @@ const Expenses = () => {
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedExpense, setSelectedExpense] = useState(null);
 
   useEffect(() => {
     fetchExpenses();
@@ -163,7 +164,11 @@ const Expenses = () => {
                     {new Date(expense.date).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900" title="View Details">
+                    <button 
+                      onClick={() => setSelectedExpense(expense)}
+                      className="text-blue-600 hover:text-blue-900" 
+                      title="View Details"
+                    >
                       <Eye className="h-5 w-5" />
                     </button>
                   </td>
@@ -200,6 +205,77 @@ const Expenses = () => {
           </div>
         )}
       </div>
+
+      {/* Expense Detail Modal */}
+      {selectedExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-bold">Expense Details</h2>
+              <button onClick={() => setSelectedExpense(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Description</p>
+                    <p className="text-lg font-medium">{selectedExpense.description}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Group</p>
+                    <p className="text-lg font-medium">{selectedExpense.groupId.name}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Amount</p>
+                      <p className="text-xl font-bold text-green-600">₹{selectedExpense.amount}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Category</p>
+                      <p className="text-lg font-medium">{selectedExpense.category}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Paid By</p>
+                    <div className="flex items-center mt-1">
+                      <img src={selectedExpense.paidBy.avatar} className="w-8 h-8 rounded-full mr-2" />
+                      <p className="font-medium">{selectedExpense.paidBy.name}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Date</p>
+                    <p className="font-medium">{new Date(selectedExpense.date).toLocaleString()}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-500 uppercase font-bold tracking-wider mb-2">Payment Proof</p>
+                  {selectedExpense.receipt ? (
+                    <div className="rounded-xl overflow-hidden border bg-gray-50 flex items-center justify-center h-64">
+                      <img src={selectedExpense.receipt} alt="Proof" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center h-64 text-gray-400">
+                      <Image size={48} className="mb-2 opacity-20" />
+                      <p>No proof uploaded</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="p-6 bg-gray-50 border-t flex justify-end">
+              <button 
+                onClick={() => setSelectedExpense(null)}
+                className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
