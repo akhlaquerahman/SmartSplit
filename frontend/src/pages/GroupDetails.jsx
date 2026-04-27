@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import useAuthStore from '../store/useAuthStore';
 import axios from 'axios';
-import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud } from 'lucide-react';
+import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
+import { QRCodeSVG } from 'qrcode.react';
 
 const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toFixed(2)}`;
 
@@ -1065,6 +1066,38 @@ const GroupDetails = () => {
                       ))}
                   </select>
                   <p className="text-xs text-slate-500 mt-2">Choose the user who should receive this settlement request.</p>
+                  
+                  {settlementForm.receiverId && (() => {
+                    const receiverMember = activeGroup.members.find(m => m.user?._id === settlementForm.receiverId);
+                    const receiverUser = receiverMember?.user;
+                    if (receiverUser?.upiId) {
+                      return (
+                        <div className="mt-4 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-2xl border border-primary-100 dark:border-primary-800 flex flex-col items-center gap-3">
+                          <QRCodeSVG 
+                            value={`upi://pay?pa=${receiverUser.upiId}&pn=${encodeURIComponent(receiverUser.name)}&cu=INR&am=${settlementForm.amount || ''}`} 
+                            size={160}
+                            includeMargin={true}
+                            className="rounded-lg shadow-md bg-white p-2"
+                          />
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-primary-900 dark:text-primary-100">Scan to Pay {receiverUser.name}</p>
+                            <p className="text-xs text-primary-600 dark:text-primary-400">{receiverUser.upiId}</p>
+                            {settlementForm.amount && (
+                              <p className="text-lg font-black text-primary-700 dark:text-primary-300 mt-1">₹{settlementForm.amount}</p>
+                            )}
+                          </div>
+                          <a 
+                            href={`upi://pay?pa=${receiverUser.upiId}&pn=${encodeURIComponent(receiverUser.name)}&cu=INR&am=${settlementForm.amount || ''}`}
+                            className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg text-sm"
+                          >
+                            <QrCode size={18} /> Pay via UPI App
+                          </a>
+                          <p className="text-[10px] text-slate-500 text-center">Clicking this will open your payment apps (Mobile Only)</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Amount</label>

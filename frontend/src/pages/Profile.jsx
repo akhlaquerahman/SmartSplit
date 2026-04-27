@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import useAuthStore from '../store/useAuthStore';
-import { User, Phone, Image, Lock, Loader2, Check, Camera, Eye, EyeOff } from 'lucide-react';
+import { User, Phone, Image, Lock, Loader2, Check, Camera, Eye, EyeOff, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 
 const Profile = () => {
   const { user, updateProfile, changePassword, loading, error, clearError } = useAuthStore();
   
   const [name, setName] = useState(user?.name || '');
   const [mobile, setMobile] = useState(user?.mobile || '');
+  const [upiId, setUpiId] = useState(user?.upiId || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [success, setSuccess] = useState('');
 
@@ -38,7 +40,7 @@ const Profile = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     setSuccess('');
-    const res = await updateProfile({ name, mobile, avatar });
+    const res = await updateProfile({ name, mobile, upiId, avatar });
     if (res) setSuccess('Profile updated successfully!');
   };
 
@@ -135,6 +137,34 @@ const Profile = () => {
                     placeholder="e.g. +91 98765 43210"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">UPI ID</label>
+                <div className="relative">
+                  <QrCode className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none"
+                    placeholder="e.g. name@bank"
+                  />
+                </div>
+                {upiId && (
+                  <div className="mt-4 p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-3">
+                    <QRCodeSVG 
+                      value={`upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&cu=INR`} 
+                      size={180}
+                      includeMargin={true}
+                      className="rounded-lg shadow-sm bg-white p-2"
+                    />
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">Your Personal QR Code</p>
+                      <p className="text-xs text-slate-500">{upiId}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
