@@ -21,9 +21,8 @@ const Dashboard = () => {
     try {
       const token = localStorage.getItem('token');
       console.log('Token:', token ? 'Present' : 'Missing');
-      console.log('API URL:', `${import.meta.env.VITE_API_URL}/api/admin/dashboard`);
-      
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/dashboard`, {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await axios.get(`${baseUrl}/api/admin/dashboard`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

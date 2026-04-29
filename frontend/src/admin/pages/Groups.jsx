@@ -24,7 +24,8 @@ const Groups = () => {
         search
       });
 
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/groups?${params}`, {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await axios.get(`${baseUrl}/api/admin/groups?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -44,7 +45,8 @@ const Groups = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/admin/groups/${groupId}`, {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      await axios.delete(`${baseUrl}/api/admin/groups/${groupId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

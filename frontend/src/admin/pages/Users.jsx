@@ -24,7 +24,8 @@ const Users = () => {
         status
       });
 
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/users?${params}`, {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await axios.get(`${baseUrl}/api/admin/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
