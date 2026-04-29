@@ -36,7 +36,7 @@ const Dashboard = () => {
     setFriendsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/groups/friends`, {
+      const response = await axios.get(`${(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/groups/friends`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { search }
       });
