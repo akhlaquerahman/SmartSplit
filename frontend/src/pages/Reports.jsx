@@ -103,7 +103,7 @@ const Reports = () => {
             </div>
             <div className="p-6 bg-slate-50 dark:bg-slate-950 rounded-3xl border text-center">
               <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Pending Dues</p>
-              <p className="text-3xl font-black text-amber-600">₹{(summary?.totalExpense - settlements?.filter(s => s.status === 'completed').reduce((sum, s) => sum + s.amount, 0)).toFixed(2) || '0.00'}</p>
+              <p className="text-3xl font-black text-amber-600">₹{summary?.totalOwed?.toFixed(2) || '0.00'}</p>
             </div>
           </div>
 
