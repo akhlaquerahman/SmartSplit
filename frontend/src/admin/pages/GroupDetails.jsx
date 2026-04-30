@@ -17,28 +17,49 @@ const GroupDetails = () => {
 
   const fetchGroupDetails = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
       // Fetch group details
-      const groupResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/groups/${id}`, {
+      const groupResponse = await axios.get(`${baseUrl}/api/admin/groups/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      console.log('Admin Group Detail Response:', groupResponse.data);
+
+      if (groupResponse.data && groupResponse.data.group) {
+        setGroup(groupResponse.data.group);
+      } else {
+        console.error('Group data not found in response:', groupResponse.data);
+      }
 
       // Fetch expenses for this group
-      const expensesResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/expenses?groupId=${id}&limit=50`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      try {
+        const expensesResponse = await axios.get(`${baseUrl}/api/admin/expenses?groupId=${id}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setExpenses(expensesResponse.data.expenses || []);
+      } catch (expErr) {
+        console.error('Error fetching admin expenses:', expErr);
+      }
 
       // Fetch settlements for this group
-      const settlementsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/settlements?groupId=${id}&limit=50`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      try {
+        const settlementsResponse = await axios.get(`${baseUrl}/api/admin/settlements?groupId=${id}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSettlements(settlementsResponse.data.settlements || []);
+      } catch (setErr) {
+        console.error('Error fetching admin settlements:', setErr);
+      }
 
-      setGroup(groupResponse.data.group);
-      setExpenses(expensesResponse.data.expenses);
-      setSettlements(settlementsResponse.data.settlements);
     } catch (error) {
       console.error('Error fetching group details:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      }
     } finally {
       setLoading(false);
     }
