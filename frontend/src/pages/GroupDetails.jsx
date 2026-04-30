@@ -1052,6 +1052,18 @@ const GroupDetails = () => {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium mb-2">Amount</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={settlementForm.amount}
+                    onChange={(e) => setSettlementForm({ ...settlementForm, amount: e.target.value })}
+                    className="w-full p-4 rounded-2xl border bg-slate-50 dark:bg-slate-950 outline-none"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium mb-2">Select the member you will give money to</label>
                   <select
                     value={settlementForm.receiverId}
@@ -1098,18 +1110,6 @@ const GroupDetails = () => {
                     }
                     return null;
                   })()}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Amount</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={settlementForm.amount}
-                    onChange={(e) => setSettlementForm({ ...settlementForm, amount: e.target.value })}
-                    className="w-full p-4 rounded-2xl border bg-slate-50 dark:bg-slate-950 outline-none"
-                    placeholder="0.00"
-                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Payment type</label>

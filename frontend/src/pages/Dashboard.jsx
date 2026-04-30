@@ -69,6 +69,19 @@ const Dashboard = () => {
     }
   };
 
+  const stats = groups.reduce((acc, group) => {
+    const userBalance = group.summary?.memberBalances?.find(b => 
+      (b.user?._id || b.user) === user?._id
+    );
+    const netBalance = userBalance?.netBalance || 0;
+    
+    acc.total += netBalance;
+    if (netBalance < 0) acc.owe += Math.abs(netBalance);
+    if (netBalance > 0) acc.owed += netBalance;
+    
+    return acc;
+  }, { total: 0, owe: 0, owed: 0 });
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -90,7 +103,12 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-slate-900/60 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 col-span-2 md:col-span-1 shadow-sm">
           <div>
             <p className="text-slate-500 text-xs md:text-sm mb-1 font-medium">Total Balance</p>
-            <h3 className="text-xl md:text-2xl font-bold">₹0.00</h3>
+            <h3 className={cn(
+              "text-xl md:text-2xl font-bold",
+              stats.total > 0 ? "text-green-500" : stats.total < 0 ? "text-red-500" : ""
+            )}>
+              ₹{stats.total.toFixed(2)}
+            </h3>
           </div>
           <div className="p-2 md:p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl">
             <Wallet size={20} className="md:size-6" />
@@ -99,7 +117,7 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-slate-900/60 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col items-start justify-between gap-2 shadow-sm">
           <div>
             <p className="text-slate-500 text-xs md:text-sm mb-1 font-medium">You Owe</p>
-            <h3 className="text-xl md:text-2xl font-bold text-red-500">₹0.00</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-red-500">₹{stats.owe.toFixed(2)}</h3>
           </div>
           <div className="p-2 md:p-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl">
             <ArrowDownLeft size={20} className="md:size-6" />
@@ -108,7 +126,7 @@ const Dashboard = () => {
         <div className="bg-white dark:bg-slate-900/60 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col items-start justify-between gap-2 shadow-sm">
           <div>
             <p className="text-slate-500 text-xs md:text-sm mb-1 font-medium">You are Owed</p>
-            <h3 className="text-xl md:text-2xl font-bold text-green-500">₹0.00</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-green-500">₹{stats.owed.toFixed(2)}</h3>
           </div>
           <div className="p-2 md:p-3 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-xl">
             <ArrowUpRight size={20} className="md:size-6" />
