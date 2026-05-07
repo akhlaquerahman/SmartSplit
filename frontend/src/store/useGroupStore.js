@@ -149,6 +149,38 @@ const useGroupStore = create((set, get) => ({
     } catch (error) {
       set({ error: error.response?.data?.message || error.message, loading: false });
     }
+  },
+
+  updateGroup: async (groupId, groupData) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await api.put(`/groups/${groupId}`, groupData);
+      set((state) => ({
+        groups: state.groups.map((g) => (g._id === groupId ? { ...g, ...response.data } : g)),
+        activeGroup: state.activeGroup?._id === groupId ? { ...state.activeGroup, ...response.data } : state.activeGroup,
+        loading: false
+      }));
+      return true;
+    } catch (error) {
+      set({ error: error.response?.data?.message || error.message, loading: false });
+      return false;
+    }
+  },
+
+  deleteGroup: async (groupId) => {
+    set({ loading: true, error: null });
+    try {
+      await api.delete(`/groups/${groupId}`);
+      set((state) => ({
+        groups: state.groups.filter((g) => g._id !== groupId),
+        activeGroup: state.activeGroup?._id === groupId ? null : state.activeGroup,
+        loading: false
+      }));
+      return true;
+    } catch (error) {
+      set({ error: error.response?.data?.message || error.message, loading: false });
+      return false;
+    }
   }
 }));
 

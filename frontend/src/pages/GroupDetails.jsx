@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../utils/api';
-import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud, QrCode } from 'lucide-react';
+import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud, QrCode, MessageCircle, Edit2, Trash2 } from 'lucide-react';
+import ChatDrawer from '../components/ChatDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { QRCodeSVG } from 'qrcode.react';
@@ -81,6 +82,14 @@ const GroupDetails = () => {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [removingMember, setRemovingMember] = useState(null);
+  const [showChat, setShowChat] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    description: '',
+    category: ''
+  });
 
   useEffect(() => {
     if (showAddMember && !memberEmail) {
@@ -147,7 +156,9 @@ const GroupDetails = () => {
     if (!activeGroup?.members || !activeGroup?.summary?.memberBalances) return [];
 
     return activeGroup.members.map((member) => {
-      const memberId = member.user._id.toString();
+      const memberId = member.user?._id?.toString() || member.user?.toString();
+      if (!memberId) return null;
+
       const summaryRecord = activeGroup.summary.memberBalances.find((record) => {
         const recordId = record.user?._id?.toString?.() || record.user?.toString?.();
         return recordId === memberId;
@@ -155,8 +166,8 @@ const GroupDetails = () => {
 
       return {
         id: memberId,
-        name: member.user.name,
-        avatar: member.user.avatar,
+        name: member.user?.name || 'Unknown User',
+        avatar: member.user?.avatar,
         role: member.role,
         totalShare: summaryRecord?.totalShare || 0,
         totalPaid: summaryRecord?.totalPaid || 0,
@@ -165,7 +176,7 @@ const GroupDetails = () => {
         settlementPaid: summaryRecord?.settlementPaid || 0,
         settlementReceived: summaryRecord?.settlementReceived || 0
       };
-    });
+    }).filter(Boolean);
   }, [activeGroup]);
 
   const currentMemberSummary = useMemo(() => (
@@ -177,10 +188,10 @@ const GroupDetails = () => {
   const sortedSettlements = useMemo(() => [...settlements].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [settlements]);
   const pendingRequests = sortedSettlements.filter((settlement) => settlement.status === 'pending');
   const paidMostName = activeGroup?.summary?.paidMost
-    ? activeGroup.members.find((member) => member.user._id === activeGroup.summary.paidMost.userId)?.user.name
+    ? activeGroup.members.find((member) => (member.user?._id || member.user) === activeGroup.summary.paidMost.userId)?.user?.name
     : 'No activity yet';
   const owesMostName = activeGroup?.summary?.owesMost
-    ? activeGroup.members.find((member) => member.user._id === activeGroup.summary.owesMost.userId)?.user.name
+    ? activeGroup.members.find((member) => (member.user?._id || member.user) === activeGroup.summary.owesMost.userId)?.user?.name
     : 'No activity yet';
 
   const handleToggleParticipant = (userId) => {
@@ -200,7 +211,7 @@ const GroupDetails = () => {
     if (expenseForm.splitType === 'equal') {
       const baseShare = Number((amount / selectedParticipants.length).toFixed(2));
       return selectedParticipants.map((userId, index) => {
-        const member = activeGroup.members.find((item) => item.user._id === userId);
+        const member = activeGroup.members.find((item) => (item.user?._id || item.user) === userId);
         let shareAmount;
         if (index === selectedParticipants.length - 1) {
           shareAmount = Number((amount - (baseShare * (selectedParticipants.length - 1))).toFixed(2));
@@ -212,7 +223,7 @@ const GroupDetails = () => {
     }
 
     return selectedParticipants.map((userId) => {
-      const member = activeGroup.members.find((item) => item.user._id === userId);
+      const member = activeGroup.members.find((item) => (item.user?._id || item.user) === userId);
       return { userId, name: member?.user.name || 'Member', amount: Number(customShares[userId] || 0) };
     });
   }, [expenseForm.amount, expenseForm.splitType, selectedParticipants, customShares, activeGroup]);
@@ -364,6 +375,35 @@ const GroupDetails = () => {
     }
   }, [showSettlementModal]);
 
+  useEffect(() => {
+    if (showEditModal && activeGroup) {
+      setEditForm({
+        name: activeGroup.name,
+        description: activeGroup.description || '',
+        category: activeGroup.category || 'Other'
+      });
+    }
+  }, [showEditModal, activeGroup]);
+
+  const handleUpdateGroup = async (e) => {
+    e.preventDefault();
+    const success = await useGroupStore.getState().updateGroup(activeGroup._id, editForm);
+    if (success) {
+      setShowEditModal(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (window.confirm('Are you sure you want to delete this group? All expenses and settlements will be permanently removed.')) {
+      setIsDeleting(true);
+      const success = await useGroupStore.getState().deleteGroup(activeGroup._id);
+      if (success) {
+        navigate('/dashboard');
+      }
+      setIsDeleting(false);
+    }
+  };
+
   if (loading && !activeGroup) return <div className="text-center py-20">Loading group details...</div>;
   if (!activeGroup) return <div className="text-center py-20">{error || 'Group not found'}</div>;
 
@@ -395,9 +435,30 @@ const GroupDetails = () => {
       <div className="space-y-4">
         <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-8 border shadow-sm">
           <div className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-tight">{activeGroup.name}</h2>
-              <p className="text-slate-500 mt-1 text-sm">{activeGroup.description}</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-tight">{activeGroup.name}</h2>
+                <p className="text-slate-500 mt-1 text-sm">{activeGroup.description}</p>
+              </div>
+              {isAdmin && (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setShowEditModal(true)}
+                    className="p-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 rounded-2xl text-slate-600 dark:text-slate-300 transition-all"
+                    title="Edit Group"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button 
+                    onClick={handleDeleteGroup}
+                    disabled={isDeleting}
+                    className="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 rounded-2xl text-rose-600 transition-all"
+                    title="Delete Group"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
               <button onClick={() => setShowExpenseModal(true)} className="flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl px-4 py-3 text-sm font-bold transition-all shadow-lg shadow-primary-200 dark:shadow-none">
@@ -1377,6 +1438,90 @@ const GroupDetails = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Edit Group Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditModal(false)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl p-8"
+            >
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Edit Group</h3>
+                <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateGroup} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Group Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-6 py-4 font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-primary-500/10 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description</label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-6 py-4 font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-primary-500/10 transition-all resize-none h-32"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-6 py-4 font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-primary-500/10 transition-all appearance-none"
+                  >
+                    <option value="Trip">Trip</option>
+                    <option value="Home">Home</option>
+                    <option value="Office">Office</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl shadow-primary-500/20 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Saving Changes...' : 'Save Changes'}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Chat Button */}
+      <button
+        onClick={() => setShowChat(true)}
+        className="fixed bottom-24 right-6 md:bottom-10 md:right-10 p-4 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-2xl shadow-primary-500/40 z-50 transition-all hover:scale-110 active:scale-95 group"
+      >
+        <MessageCircle size={28} />
+        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          Group Chat
+        </span>
+      </button>
+
+      <ChatDrawer
+        groupId={activeGroup._id}
+        groupName={activeGroup.name}
+        isOpen={showChat}
+        onClose={() => setShowChat(false)}
+      />
     </div>
   );
 };
