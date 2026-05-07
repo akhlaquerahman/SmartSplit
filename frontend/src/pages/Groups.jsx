@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import { Plus, Users, Check } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
 
@@ -31,9 +31,7 @@ const Groups = () => {
   const fetchFriends = async (search = '') => {
     setFriendsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/groups/friends`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await api.get('/groups/friends', {
         params: { search }
       });
       setFriends(response.data);

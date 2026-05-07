@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { Mail, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -17,7 +17,7 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
+      const response = await api.post('/auth/forgot-password', {
         email
       });
 

@@ -1,8 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-const API_URL = `${API_BASE_URL}/api/auth`;
+import api from '../utils/api';
 
 const normalizeAvatar = (user) => {
   if (!user) return null;
@@ -33,7 +30,7 @@ const useAuthStore = create((set) => ({
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/login`, { email, password });
+      const response = await api.post('/auth/login', { email, password });
       const userData = normalizeAvatar(response.data);
       set({ user: userData, token: userData.token, loading: false });
       localStorage.setItem('user', JSON.stringify(userData));
@@ -52,7 +49,7 @@ const useAuthStore = create((set) => ({
   register: async (name, email, password) => {
     set({ loading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/register`, { name, email, password });
+      const response = await api.post('/auth/register', { name, email, password });
       set({ loading: false });
       return response.data; // Return data so component can handle redirect
     } catch (error) {
@@ -64,7 +61,7 @@ const useAuthStore = create((set) => ({
   googleLogin: async (idToken) => {
     set({ loading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/google-login`, { idToken });
+      const response = await api.post('/auth/google-login', { idToken });
       const userData = normalizeAvatar(response.data);
       set({ user: userData, token: userData.token, loading: false });
       localStorage.setItem('user', JSON.stringify(userData));
@@ -81,7 +78,7 @@ const useAuthStore = create((set) => ({
   verifyEmail: async (email, otp) => {
     set({ loading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/verify-email`, { email, otp });
+      const response = await api.post('/auth/verify-email', { email, otp });
       const userData = normalizeAvatar(response.data);
       set({ user: userData, token: userData.token, loading: false });
       localStorage.setItem('user', JSON.stringify(userData));
@@ -96,7 +93,7 @@ const useAuthStore = create((set) => ({
   resendOTP: async (email) => {
     set({ loading: true, error: null });
     try {
-      await axios.post(`${API_URL}/resend-otp`, { email });
+      await api.post('/auth/resend-otp', { email });
       set({ loading: false });
       return true;
     } catch (error) {
@@ -108,9 +105,7 @@ const useAuthStore = create((set) => ({
   updateProfile: async (data) => {
     set({ loading: true, error: null });
     try {
-      const response = await axios.put(`${API_URL}/profile`, data, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await api.put('/auth/profile', data);
       const userData = normalizeAvatar(response.data);
       set({ user: userData, loading: false });
       localStorage.setItem('user', JSON.stringify(userData));
@@ -124,9 +119,7 @@ const useAuthStore = create((set) => ({
   requestPasswordOtp: async () => {
     set({ loading: true, error: null });
     try {
-      await axios.post(`${API_URL}/request-password-otp`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await api.post('/auth/request-password-otp', {});
       set({ loading: false });
       return true;
     } catch (error) {
@@ -138,9 +131,7 @@ const useAuthStore = create((set) => ({
   verifyPasswordOtp: async (otp, newPassword) => {
     set({ loading: true, error: null });
     try {
-      await axios.post(`${API_URL}/verify-password-otp`, { otp, newPassword }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await api.post('/auth/verify-password-otp', { otp, newPassword });
       set({ loading: false });
       return true;
     } catch (error) {
@@ -152,12 +143,10 @@ const useAuthStore = create((set) => ({
   changePassword: async (currentPassword, newPassword, confirmPassword) => {
     set({ loading: true, error: null });
     try {
-      await axios.post(`${API_URL}/change-password`, { 
+      await api.post('/auth/change-password', { 
         currentPassword, 
         newPassword, 
         confirmPassword 
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       set({ loading: false });
       return true;

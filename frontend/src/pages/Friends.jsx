@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { User, Mail, Calendar, MapPin, ChevronRight, Search, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -15,10 +15,7 @@ const Friends = () => {
 
   const fetchFriends = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/groups/friends`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/groups/friends');
       setFriends(response.data);
     } catch (error) {
       console.error('Error fetching friends:', error);

@@ -1,8 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-const API_URL = `${API_BASE_URL}/api`;
+import api from '../utils/api';
 
 const useGroupStore = create((set, get) => ({
   groups: [],
@@ -16,10 +13,7 @@ const useGroupStore = create((set, get) => ({
   fetchGroups: async () => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/groups`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/groups');
       set({ groups: response.data, loading: false });
     } catch (error) {
       set({ error: error.response?.data?.message || error.message, loading: false });
@@ -29,11 +23,10 @@ const useGroupStore = create((set, get) => ({
   fetchGroupDetails: async (groupId) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      const groupRes = await axios.get(`${API_URL}/groups/${groupId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const groupRes = await api.get(`/groups/${groupId}`);
       let settlementData = [];
       try {
-        const settlementRes = await axios.get(`${API_URL}/settlements/${groupId}`, { headers: { Authorization: `Bearer ${token}` } });
+        const settlementRes = await api.get(`/settlements/${groupId}`);
         settlementData = settlementRes.data;
       } catch (settlementError) {
         // Keep group data even when settlement lookup fails
@@ -55,10 +48,7 @@ const useGroupStore = create((set, get) => ({
   createGroup: async (groupData) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/groups`, groupData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.post('/groups', groupData);
       set((state) => ({ groups: [...state.groups, response.data], loading: false }));
       return true;
     } catch (error) {
@@ -70,10 +60,7 @@ const useGroupStore = create((set, get) => ({
   addMember: async (groupId, email) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/groups/${groupId}/add-member`, { email }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.post(`/groups/${groupId}/add-member`, { email });
       if (get().activeGroup && get().activeGroup._id === groupId) {
         set((state) => ({ activeGroup: { ...state.activeGroup, members: response.data } }));
       }
@@ -88,9 +75,7 @@ const useGroupStore = create((set, get) => ({
   removeMember: async (groupId, userId) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/groups/${groupId}/members`, {
-        headers: { Authorization: `Bearer ${token}` },
+      await api.delete(`/groups/${groupId}/members`, {
         data: { userId }
       });
       if (get().activeGroup && get().activeGroup._id === groupId) {
@@ -112,10 +97,7 @@ const useGroupStore = create((set, get) => ({
   addExpense: async (expenseData) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/expenses`, expenseData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/expenses', expenseData);
       
       // Attempt background refresh, but don't block the UI if it fails intermittently
       try {
@@ -136,10 +118,7 @@ const useGroupStore = create((set, get) => ({
   createSettlement: async (settlementData) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/settlements`, settlementData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/settlements', settlementData);
       await get().fetchGroupDetails(settlementData.groupId);
       return true;
     } catch (error) {
@@ -151,10 +130,7 @@ const useGroupStore = create((set, get) => ({
   respondSettlement: async (settlementId, action, groupId) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(`${API_URL}/settlements/${settlementId}/respond`, { action }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.patch(`/settlements/${settlementId}/respond`, { action });
       await get().fetchGroupDetails(groupId);
       return true;
     } catch (error) {
@@ -166,9 +142,7 @@ const useGroupStore = create((set, get) => ({
   fetchHistory: async (filters = {}) => {
     set({ loading: true, error: null });
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/history`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await api.get('/history', {
         params: filters
       });
       set({ history: response.data, loading: false });

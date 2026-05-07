@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import useAuthStore from '../store/useAuthStore';
-import axios from 'axios';
+import api from '../utils/api';
 import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud, QrCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -106,13 +106,10 @@ const GroupDetails = () => {
       return mId === fId;
     }));
   }, [friends, activeGroup]);
-
   const fetchFriends = async (search = '') => {
     setFriendsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/groups/friends`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await api.get('/groups/friends', {
         params: { search }
       });
       setFriends(response.data);
