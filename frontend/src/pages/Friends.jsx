@@ -24,10 +24,13 @@ const Friends = () => {
     }
   };
 
-  const filteredFriends = friends.filter(friend => 
-    friend.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    friend.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFriends = Array.isArray(friends) ? friends.filter(friend => {
+    if (!friend) return false;
+    const name = friend.name || '';
+    const email = friend.email || '';
+    return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           email.toLowerCase().includes(searchTerm.toLowerCase());
+  }) : [];
 
   return (
     <div className="space-y-8">
@@ -71,13 +74,13 @@ const Friends = () => {
             >
               <div className="flex items-center gap-4">
                 <img 
-                  src={friend.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.name)}&background=random`} 
-                  alt={friend.name} 
+                  src={friend.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.name || 'User')}&background=random`} 
+                  alt={friend.name || 'User'} 
                   className="w-16 h-16 rounded-2xl object-cover shadow-md group-hover:scale-105 transition-transform"
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-lg truncate">{friend.name}</h3>
-                  <p className="text-slate-500 text-sm truncate">{friend.email}</p>
+                  <h3 className="font-bold text-lg truncate">{friend.name || 'Unknown User'}</h3>
+                  <p className="text-slate-500 text-sm truncate">{friend.email || 'No email provided'}</p>
                 </div>
                 <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 group-hover:text-primary-600 transition-colors">
                   <ChevronRight size={18} />
@@ -116,16 +119,16 @@ const Friends = () => {
                 <div className="relative inline-block mb-3.5">
                   <div className="absolute inset-0 rounded-[1.8rem] bg-gradient-to-tr from-primary-500 to-indigo-500 blur-sm opacity-40 animate-pulse" />
                   <img 
-                    src={selectedFriend.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedFriend.name)}&background=random`} 
-                    alt={selectedFriend.name} 
+                    src={selectedFriend.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedFriend.name || 'User')}&background=random`} 
+                    alt={selectedFriend.name || 'User'} 
                     className="relative w-28 h-28 rounded-[1.75rem] mx-auto border-4 border-white dark:border-slate-900 shadow-lg object-cover"
                   />
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full shadow-md" title="Active" />
                 </div>
                 
-                <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">{selectedFriend.name}</h2>
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">{selectedFriend.name || 'Unknown User'}</h2>
                 <p className="text-slate-400 dark:text-slate-500 text-xs mt-1 flex items-center justify-center gap-1.5 font-semibold">
-                  <Mail size={12} className="opacity-70" /> {selectedFriend.email}
+                  <Mail size={12} className="opacity-70" /> {selectedFriend.email || 'No email provided'}
                 </p>
                 
                 <div className="space-y-3.5 mt-6">
@@ -140,7 +143,7 @@ const Friends = () => {
                         </div>
                         <div className="min-w-0">
                           <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider">Full Name</p>
-                          <p className="font-extrabold text-xs text-slate-800 dark:text-white truncate">{selectedFriend.name}</p>
+                          <p className="font-extrabold text-xs text-slate-800 dark:text-white truncate">{selectedFriend.name || 'Unknown User'}</p>
                         </div>
                       </div>
 
@@ -151,7 +154,7 @@ const Friends = () => {
                         </div>
                         <div className="min-w-0">
                           <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider">Email Address</p>
-                          <p className="font-extrabold text-xs text-slate-800 dark:text-white truncate">{selectedFriend.email}</p>
+                          <p className="font-extrabold text-xs text-slate-800 dark:text-white truncate">{selectedFriend.email || 'No email provided'}</p>
                         </div>
                       </div>
 
