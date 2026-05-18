@@ -156,6 +156,19 @@ const useAuthStore = create((set) => ({
     }
   },
 
+  getMe: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      const userData = normalizeAvatar(response.data);
+      set({ user: userData });
+      localStorage.setItem('user', JSON.stringify(userData));
+      return userData;
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      return null;
+    }
+  },
+
   logout: () => {
     set({ user: null, token: null });
     localStorage.removeItem('user');

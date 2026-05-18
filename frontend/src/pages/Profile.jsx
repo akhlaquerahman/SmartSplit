@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 
 const Profile = () => {
-  const { user, updateProfile, changePassword, loading, error, clearError } = useAuthStore();
+  const { user, updateProfile, changePassword, getMe, loading, error, clearError } = useAuthStore();
   const { groups, fetchGroups } = useGroupStore();
   
   const [name, setName] = useState(user?.name || '');
@@ -29,6 +29,16 @@ const Profile = () => {
   const [upiId, setUpiId] = useState(user?.upiId || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [success, setSuccess] = useState('');
+
+  // Keep local states in sync with auth store user
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setMobile(user.mobile || '');
+      setUpiId(user.upiId || '');
+      setAvatar(user.avatar || '');
+    }
+  }, [user]);
 
   // UI state feedback
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -43,10 +53,13 @@ const Profile = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Fetch groups to calculate live ledger stats
+  // Fetch groups and latest user profile to sync fields
   useEffect(() => {
     fetchGroups();
-  }, [fetchGroups]);
+    if (getMe) {
+      getMe();
+    }
+  }, [fetchGroups, getMe]);
 
   const memberSince = useMemo(() => {
     return user?.createdAt 
