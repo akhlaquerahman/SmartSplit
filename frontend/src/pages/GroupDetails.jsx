@@ -867,7 +867,7 @@ const GroupDetails = () => {
         </div>
 
         {/* Standalone White Card for Statistics Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] md:grid-cols-5 gap-3 md:gap-4">
           
           {/* Total Spent */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 flex items-center justify-between gap-3 shadow-sm transition-all hover:shadow-md">
@@ -984,7 +984,7 @@ const GroupDetails = () => {
         </div>
 
         {tab === 'overview' && (
-          <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+          <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[1.5fr_1fr] gap-4">
             <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-8 border shadow-sm">
               <div className="flex items-center justify-between gap-4 mb-6">
                 <div>
@@ -1081,17 +1081,16 @@ const GroupDetails = () => {
           </div>
         )}
         {tab === 'expenses' && (
-          <div className="grid gap-4 md:gap-6 lg:grid-cols-[1.6fr_1fr]">
-            {/* Left Column: Expense History */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl p-4 md:p-6 border border-slate-100 dark:border-slate-800 shadow-sm h-fit">
-              <div className="flex items-center justify-between gap-4 mb-5">
+          <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[1.6fr_1fr] gap-4 md:gap-6">            {/* Left Column: Expense History */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl p-3 md:p-6 border border-slate-100 dark:border-slate-800 shadow-sm h-fit">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
                 <div>
                   <h2 className="text-base md:text-xl font-bold text-slate-800 dark:text-white">Expense History</h2>
                   <p className="text-slate-500 text-xs">Track every spend in the group.</p>
                 </div>
                 <button 
                   onClick={() => setShowExpenseModal(true)} 
-                  className="rounded-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-primary-500/10 active:scale-95 transition-all h-8"
+                  className="rounded-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-primary-500/10 active:scale-95 transition-all h-8 w-fit"
                 >
                   <Plus size={12} className="stroke-[3]" /> Add Expense
                 </button>
@@ -1109,9 +1108,9 @@ const GroupDetails = () => {
                     const paidByText = isPaidByMe ? 'Paid by You' : `Paid by ${expense.paidBy?.name || 'Member'}`;
                     
                     return (
-                      <div key={expense._id} className="rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 p-3.5 md:p-5 border border-slate-100 dark:border-slate-850 transition-all hover:shadow-sm">
-                        <div className="flex justify-between items-start gap-3">
-                          <div className="min-w-0">
+                      <div key={expense._id} className="rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 p-3 md:p-5 border border-slate-100 dark:border-slate-850 transition-all hover:shadow-sm">
+                        <div className="flex justify-between items-start gap-3 w-full">
+                          <div className="min-w-0 flex-1">
                             {/* Date formatted as May 18, 2026 • 9:42 AM */}
                             <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-400">
                               <span>
@@ -1136,7 +1135,7 @@ const GroupDetails = () => {
                             <p className="font-extrabold text-sm md:text-base text-slate-800 dark:text-white mt-1 truncate">
                               {expense.description}
                             </p>
-                            <p className="text-[10px] font-bold text-primary-600 dark:text-blue-400 mt-1">
+                            <p className="text-[10px] font-bold text-primary-600 dark:text-blue-400 mt-1 leading-normal">
                               {paidByText}
                               {expense.addedBy && expense.addedBy?._id !== expense.paidBy?._id && (
                                 <span className="ml-1 opacity-70 font-semibold">• Added by {expense.addedBy?.name === currentUser?.name ? 'You' : expense.addedBy?.name}</span>
@@ -1171,7 +1170,7 @@ const GroupDetails = () => {
                                   e.stopPropagation();
                                   setOpenDropdownId(openDropdownId === expense._id ? null : expense._id);
                                 }}
-                                className="p-1 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-slate-650 transition-colors"
+                                className="p-1 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-slate-655 transition-colors"
                               >
                                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                   <circle cx="12" cy="12" r="1.5" />
@@ -1227,11 +1226,11 @@ const GroupDetails = () => {
 
                         {/* Compact Split Breakdown (Always Visible by Default) */}
                         {expense.splitDetails?.length > 0 && (
-                          <div className="mt-3 border border-slate-100/50 dark:border-slate-800/50 rounded-xl bg-white dark:bg-slate-900/60 overflow-hidden shadow-sm">
+                          <div className="mt-3 border border-slate-100/50 dark:border-slate-800/50 rounded-xl bg-white dark:bg-slate-900/60 overflow-hidden shadow-sm w-full max-w-[260px] xs:max-w-[300px] sm:max-w-full">
                             <div className="bg-slate-50/50 dark:bg-slate-950/20 px-3 py-1.5 border-b border-slate-100 dark:border-slate-800/80">
                               <span className="text-primary-600 dark:text-blue-400 font-extrabold text-[9px] tracking-wider uppercase">Shares breakdown</span>
                             </div>
-                            <div className="p-2 space-y-1.5">
+                            <div className="p-1.5 md:p-2 space-y-1 md:space-y-1.5">
                               {expense.splitDetails.map((split) => {
                                 const member = activeGroup.members.find((item) => item.user._id === split.user || item.user._id === split.user?._id || item.user._id === split.user?.toString());
                                 const memberName = member?.user.name || (split.user?.name || 'Member');
@@ -1240,7 +1239,7 @@ const GroupDetails = () => {
                                 
                                 return (
                                   <div key={split.user?._id || split.user} className={cn(
-                                    "flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg transition-all border",
+                                    "flex items-center justify-between text-[11px] px-2 md:px-2.5 py-1 md:py-1.5 rounded-lg transition-all border w-full",
                                     isPayer 
                                       ? "bg-emerald-50/20 border-emerald-100/20 text-emerald-800 dark:bg-emerald-950/10 dark:border-emerald-900/20 dark:text-emerald-400" 
                                       : "bg-white dark:bg-slate-950 border-slate-100/70 dark:border-slate-800/40 text-slate-600 dark:text-slate-400"
@@ -1438,7 +1437,7 @@ const GroupDetails = () => {
         )}
 
         {tab === 'members' && (
-          <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+          <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[1.5fr_1fr] gap-6">
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border shadow-sm">
               <div className="flex items-center justify-between gap-4 mb-6">
                 <div>
@@ -1493,16 +1492,16 @@ const GroupDetails = () => {
         )}
 
         {tab === 'settlements' && (
-          <div className="grid gap-4 md:gap-6 lg:grid-cols-[1.5fr_1fr]">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl p-4 md:p-6 border border-slate-100 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between gap-4 mb-5">
+          <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[1.5fr_1fr] gap-4 md:gap-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl p-3 md:p-6 border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
                 <div>
                   <h2 className="text-base md:text-xl font-bold">Settlements</h2>
                   <p className="text-slate-500 text-xs">Manage pending payments and history.</p>
                 </div>
                 <button 
                   onClick={() => setShowSettlementModal(true)} 
-                  className="rounded-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 text-xs font-black uppercase tracking-wider shadow-md shadow-primary-500/10 active:scale-95 transition-all"
+                  className="rounded-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 text-xs font-black uppercase tracking-wider shadow-md shadow-primary-500/10 active:scale-95 transition-all w-fit"
                 >
                   New request
                 </button>
@@ -1515,9 +1514,9 @@ const GroupDetails = () => {
                   </div>
                 ) : (
                   sortedSettlements.map((settlement) => (
-                    <div key={settlement._id} className="rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 p-3.5 md:p-5 border border-slate-100 dark:border-slate-850">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                    <div key={settlement._id} className="rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 p-3 md:p-5 border border-slate-100 dark:border-slate-850">
+                      <div className="flex justify-between items-start gap-3 w-full">
+                        <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-bold text-slate-400">
                             {new Date(settlement.createdAt).toLocaleString('en-US', { 
                               day: '2-digit', 

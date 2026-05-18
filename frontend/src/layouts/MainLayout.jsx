@@ -198,8 +198,11 @@ const MainLayout = ({ children }) => {
           </div>
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-28 md:pb-8">
-            <div className="max-w-6xl mx-auto">
-              {children}
+            <div className="max-w-6xl mx-auto flex flex-col min-h-full justify-between gap-8">
+              <div className="flex-1">
+                {children}
+              </div>
+              <Footer />
             </div>
           </main>
 
@@ -234,8 +237,6 @@ const MainLayout = ({ children }) => {
 
         {mobileOpen && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setMobileOpen(false)} />}
       </div>
-
-      <Footer />
     </div>
   );
 };

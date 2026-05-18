@@ -98,7 +98,7 @@ const Dashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-        <div className="bg-white dark:bg-slate-900/60 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 col-span-2 md:col-span-1 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 col-span-2 md:col-span-1 shadow-sm">
           <div>
             <p className="text-slate-500 text-xs md:text-sm mb-1 font-medium">Total Balance</p>
             <h3 className={cn(
@@ -112,7 +112,7 @@ const Dashboard = () => {
             <Wallet size={20} className="md:size-6" />
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900/60 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col items-start justify-between gap-2 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col items-start justify-between gap-2 shadow-sm">
           <div>
             <p className="text-slate-500 text-xs md:text-sm mb-1 font-medium">You Owe</p>
             <h3 className="text-xl md:text-2xl font-bold text-red-500">₹{stats.owe.toFixed(2)}</h3>
@@ -121,7 +121,7 @@ const Dashboard = () => {
             <ArrowDownLeft size={20} className="md:size-6" />
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900/60 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col items-start justify-between gap-2 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-3xl border dark:border-slate-800/50 flex flex-col items-start justify-between gap-2 shadow-sm">
           <div>
             <p className="text-slate-500 text-xs md:text-sm mb-1 font-medium">You are Owed</p>
             <h3 className="text-xl md:text-2xl font-bold text-green-500">₹{stats.owed.toFixed(2)}</h3>
