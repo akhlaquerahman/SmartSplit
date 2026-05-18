@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
-import { User, Mail, Calendar, MapPin, ChevronRight, Search, X } from 'lucide-react';
+import { User, Mail, Calendar, MapPin, ChevronRight, Search, X, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Friends = () => {
@@ -91,75 +91,101 @@ const Friends = () => {
       {/* Friend Detail Modal */}
       <AnimatePresence>
         {selectedFriend && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedFriend(null)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md" onClick={() => setSelectedFriend(null)}>
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.35 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-slate-100 dark:border-slate-800"
             >
-              <div className="relative h-32 flex-shrink-0 bg-gradient-to-br from-primary-600 to-indigo-600">
+              {/* Header Mesh Gradient */}
+              <div className="relative h-28 flex-shrink-0 bg-gradient-to-tr from-primary-600 via-primary-500 to-indigo-600">
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
                 <button 
                   onClick={() => setSelectedFriend(null)}
                   className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
                 >
-                  <X size={20} />
+                  <X size={16} className="stroke-[3]" />
                 </button>
               </div>
               
-              <div className="px-8 pb-10 -mt-16 text-center overflow-y-auto no-scrollbar">
-                <div className="relative inline-block mb-4">
+              <div className="px-6 pb-8 -mt-14 text-center overflow-y-auto no-scrollbar">
+                {/* Profile Image with Glow Ring */}
+                <div className="relative inline-block mb-3.5">
+                  <div className="absolute inset-0 rounded-[1.8rem] bg-gradient-to-tr from-primary-500 to-indigo-500 blur-sm opacity-40 animate-pulse" />
                   <img 
                     src={selectedFriend.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedFriend.name)}&background=random`} 
                     alt={selectedFriend.name} 
-                    className="w-32 h-32 rounded-[2rem] mx-auto border-4 border-white dark:border-slate-900 shadow-xl object-cover"
+                    className="relative w-28 h-28 rounded-[1.75rem] mx-auto border-4 border-white dark:border-slate-900 shadow-lg object-cover"
                   />
-                  <div className="absolute bottom-2 right-2 w-6 h-6 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full shadow-lg" title="Online" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full shadow-md" title="Active" />
                 </div>
                 
-                <h2 className="text-2xl font-black">{selectedFriend.name}</h2>
-                <p className="text-slate-500 mb-8 flex items-center justify-center gap-2">
-                  <Mail size={16} /> {selectedFriend.email}
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-800 dark:text-white">{selectedFriend.name}</h2>
+                <p className="text-slate-400 dark:text-slate-500 text-xs mt-1 flex items-center justify-center gap-1.5 font-semibold">
+                  <Mail size={12} className="opacity-70" /> {selectedFriend.email}
                 </p>
                 
-                <div className="space-y-4">
-                  <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-3xl text-left border border-slate-100 dark:border-slate-700">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2">Member Details</p>
+                <div className="space-y-3.5 mt-6">
+                  {/* Member Details Outline Block */}
+                  <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 rounded-[1.5rem] text-left border border-slate-100 dark:border-slate-850">
+                    <p className="text-[9px] uppercase font-black tracking-widest text-slate-400 dark:text-slate-500 mb-3">Member Profile Details</p>
                     <div className="space-y-3">
+                      {/* Name Row */}
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white dark:bg-slate-900 rounded-xl shadow-sm border">
-                          <User size={16} className="text-primary-600" />
+                        <div className="p-1.5 bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-100 dark:border-slate-800 shrink-0">
+                          <User size={14} className="text-primary-500" />
                         </div>
-                        <div>
-                          <p className="text-xs text-slate-500">Full Name</p>
-                          <p className="font-bold text-sm">{selectedFriend.name}</p>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider">Full Name</p>
+                          <p className="font-extrabold text-xs text-slate-800 dark:text-white truncate">{selectedFriend.name}</p>
                         </div>
                       </div>
+
+                      {/* Email Row */}
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white dark:bg-slate-900 rounded-xl shadow-sm border">
-                          <Mail size={16} className="text-primary-600" />
+                        <div className="p-1.5 bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-100 dark:border-slate-800 shrink-0">
+                          <Mail size={14} className="text-primary-500" />
                         </div>
-                        <div>
-                          <p className="text-xs text-slate-500">Email Address</p>
-                          <p className="font-bold text-sm truncate max-w-[200px]">{selectedFriend.email}</p>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider">Email Address</p>
+                          <p className="font-extrabold text-xs text-slate-800 dark:text-white truncate">{selectedFriend.email}</p>
+                        </div>
+                      </div>
+
+                      {/* Mobile Row */}
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-white dark:bg-slate-900 rounded-xl shadow-xs border border-slate-100 dark:border-slate-800 shrink-0">
+                          <Phone size={14} className="text-primary-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider">Mobile Number</p>
+                          <p className={`font-extrabold text-xs truncate ${
+                            selectedFriend.mobile ? "text-slate-800 dark:text-white" : "text-slate-400 dark:text-slate-550 italic font-medium"
+                          }`}>
+                            {selectedFriend.mobile || 'Not provided'}
+                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-5 bg-primary-50/50 dark:bg-primary-900/10 rounded-3xl text-left border border-primary-100/50 dark:border-primary-900/20">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-primary-500 mb-2">Trust Level</p>
+                  {/* Trust Level Block */}
+                  <div className="p-4 bg-primary-50/20 dark:bg-primary-950/10 rounded-[1.5rem] text-left border border-primary-100/10 dark:border-primary-900/20">
+                    <p className="text-[9px] uppercase font-black tracking-widest text-primary-600 dark:text-blue-400 mb-2">System Trust Verification</p>
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-sm text-primary-900 dark:text-primary-100">Verified Member</p>
-                      <span className="px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-black rounded-lg uppercase">100% Secure</span>
+                      <p className="font-extrabold text-xs text-slate-800 dark:text-slate-200">Verified Member</p>
+                      <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-400 text-[8px] font-black rounded-md uppercase tracking-wider">100% Secure</span>
                     </div>
                   </div>
                 </div>
                 
+                {/* Action button */}
                 <button 
                   onClick={() => setSelectedFriend(null)}
-                  className="w-full mt-8 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-bold shadow-lg shadow-primary-500/20 transition-all active:scale-95"
+                  className="w-full mt-6 py-3.5 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-black uppercase tracking-wider text-xs shadow-md shadow-primary-500/15 transition-all active:scale-98"
                 >
                   Close Profile
                 </button>

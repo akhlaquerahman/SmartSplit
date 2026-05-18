@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useGroupStore from '../store/useGroupStore';
 import useAuthStore from '../store/useAuthStore';
 import api from '../utils/api';
-import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud, QrCode, MessageCircle, Edit2, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, Receipt, HandCoins, UserPlus, Info, Image, X, UploadCloud, QrCode, MessageCircle, Edit2, Trash2, History, Calendar } from 'lucide-react';
 import ChatDrawer from '../components/ChatDrawer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -20,6 +20,9 @@ const GroupDetails = () => {
     settlements,
     fetchGroupDetails,
     addExpense,
+    updateExpense,
+    deleteExpense,
+    fetchExpenseEditHistory,
     addMember,
     removeMember,
     createSettlement,
@@ -29,7 +32,34 @@ const GroupDetails = () => {
   } = useGroupStore();
   const { user: currentUser } = useAuthStore();
 
+  // Edit Expense State Hooks
+  const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [editExpenseForm, setEditExpenseForm] = useState({
+    description: '',
+    amount: '',
+    category: 'General',
+    splitType: 'equal',
+    paidBy: '',
+    receipt: '',
+    paymentMethod: 'UPI',
+    date: ''
+  });
+  const [editSelectedParticipants, setEditSelectedParticipants] = useState([]);
+  const [editCustomShares, setEditCustomShares] = useState({});
+  const [editExpenseError, setEditExpenseError] = useState('');
+  const [isSubmittingEditExpense, setIsSubmittingEditExpense] = useState(false);
+
+  // Edit History State Hooks
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedExpenseForHistory, setSelectedExpenseForHistory] = useState(null);
+  const [expenseEditHistoryList, setExpenseEditHistoryList] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   const [tab, setTab] = useState('overview');
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [openGroupMenu, setOpenGroupMenu] = useState(false);
+  const [expandedSplitIds, setExpandedSplitIds] = useState([]);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -194,6 +224,102 @@ const GroupDetails = () => {
     ? activeGroup.members.find((member) => (member.user?._id || member.user) === activeGroup.summary.owesMost.userId)?.user?.name
     : 'No activity yet';
 
+  const insightsData = useMemo(() => {
+    // 1. Total Transactions
+    const totalTransactions = sortedExpenses.length;
+    const totalSpendAmt = sortedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+    // 2. Monthly Trend
+    const monthlyTrend = {};
+    sortedExpenses.forEach(exp => {
+      const d = new Date(exp.date || exp.createdAt);
+      const m = d.toLocaleString('en-US', { month: 'short' });
+      monthlyTrend[m] = (monthlyTrend[m] || 0) + exp.amount;
+    });
+    const monthsData = Object.entries(monthlyTrend).slice(-3); // Last 3 months
+    const maxMonthVal = monthsData.length > 0 ? Math.max(...monthsData.map(([, val]) => val)) : 1;
+
+    // 3. Highest Spender
+    const spenderSums = {};
+    sortedExpenses.forEach(exp => {
+      const pId = exp.paidBy?._id || exp.paidBy;
+      if (pId) {
+        spenderSums[pId] = (spenderSums[pId] || 0) + exp.amount;
+      }
+    });
+    let topSpenderId = null;
+    let topSpenderVal = 0;
+    Object.entries(spenderSums).forEach(([id, val]) => {
+      if (val > topSpenderVal) {
+        topSpenderVal = val;
+        topSpenderId = id;
+      }
+    });
+    const topSpenderName = activeGroup?.members?.find(m => (m.user?._id || m.user) === topSpenderId)?.user?.name || 'No Spender';
+
+    // 4. Most Used Category
+    const categorySums = {};
+    sortedExpenses.forEach(exp => {
+      const c = exp.category || 'General';
+      categorySums[c] = (categorySums[c] || 0) + exp.amount;
+    });
+    let topCat = 'General';
+    let topCatVal = 0;
+    Object.entries(categorySums).forEach(([cat, val]) => {
+      if (val > topCatVal) {
+        topCatVal = val;
+        topCat = cat;
+      }
+    });
+    const topCatPct = totalSpendAmt > 0 ? Math.round((topCatVal / totalSpendAmt) * 100) : 0;
+
+    // 5. Your Contribution
+    const myPaidSum = sortedExpenses
+      .filter(exp => {
+        const pId = exp.paidBy?._id || exp.paidBy;
+        return pId === currentUser?._id;
+      })
+      .reduce((sum, exp) => sum + exp.amount, 0);
+    const myPct = totalSpendAmt > 0 ? Math.round((myPaidSum / totalSpendAmt) * 100) : 0;
+
+    // 6. Pending Settlements
+    const pendingCount = pendingRequests.length;
+
+    // 7. Average Spend per Member
+    const memberCount = activeGroup?.members?.length || 1;
+    const avgAmt = memberCount > 0 ? totalSpendAmt / memberCount : 0;
+
+    // 8. Smart Insights List
+    const smartInsightsList = [];
+    if (totalTransactions > 0) {
+      if (topCatVal > 0) {
+        smartInsightsList.push(`${topCat} spending accounted for ${topCatPct}% of group expenses.`);
+      }
+      if (topSpenderVal > 0) {
+        smartInsightsList.push(`${topSpenderName} spent the highest in the group, contributing ₹${topSpenderVal.toFixed(0)}.`);
+      }
+      smartInsightsList.push("Most expenses are shared equally across members.");
+    } else {
+      smartInsightsList.push("No transactions have been recorded in this group yet.");
+    }
+
+    return {
+      totalTransactions,
+      totalSpendAmt,
+      monthsData,
+      maxMonthVal,
+      topSpenderName,
+      topSpenderVal,
+      topCat,
+      topCatPct,
+      myPaidSum,
+      myPct,
+      pendingCount,
+      avgAmt,
+      smartInsightsList
+    };
+  }, [sortedExpenses, activeGroup, currentUser, pendingRequests]);
+
   const handleToggleParticipant = (userId) => {
     setSelectedParticipants((current) =>
       current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]
@@ -307,6 +433,189 @@ const GroupDetails = () => {
     }
 
     setIsSubmittingExpense(false);
+  };
+
+  // Edit Expense useMemo and Handlers
+  const editPreviewShares = useMemo(() => {
+    const amount = parseFloat(editExpenseForm.amount) || 0;
+    if (editSelectedParticipants.length === 0 || !activeGroup) return [];
+
+    if (editExpenseForm.splitType === 'equal') {
+      const baseShare = Number((amount / editSelectedParticipants.length).toFixed(2));
+      return editSelectedParticipants.map((userId, index) => {
+        const member = activeGroup.members.find((item) => (item.user?._id || item.user) === userId);
+        let shareAmount;
+        if (index === editSelectedParticipants.length - 1) {
+          shareAmount = Number((amount - (baseShare * (editSelectedParticipants.length - 1))).toFixed(2));
+        } else {
+          shareAmount = baseShare;
+        }
+        return { userId, name: member?.user.name || 'Member', amount: shareAmount || 0 };
+      });
+    }
+
+    return editSelectedParticipants.map((userId) => {
+      const member = activeGroup.members.find((item) => (item.user?._id || item.user) === userId);
+      return { userId, name: member?.user.name || 'Member', amount: Number(editCustomShares[userId] || 0) };
+    });
+  }, [editExpenseForm.amount, editExpenseForm.splitType, editSelectedParticipants, editCustomShares, activeGroup]);
+
+  const canEditExpense = (expense) => {
+    if (!currentUser) return false;
+    
+    const addedById = expense.addedBy?._id || expense.addedBy;
+    const isCreator = addedById?.toString() === currentUser._id?.toString();
+    const isGroupAdmin = activeGroup?.members?.some(
+      (member) => member.user?._id === currentUser._id && member.role === 'admin'
+    );
+    const isSystemAdmin = currentUser.role === 'admin';
+    
+    return isCreator || isGroupAdmin || isSystemAdmin;
+  };
+
+  const handleShowEditExpenseModal = (expense) => {
+    setEditingExpenseId(expense._id);
+    setEditExpenseForm({
+      description: expense.description,
+      amount: expense.amount.toString(),
+      category: expense.category || 'General',
+      splitType: expense.splitType || 'equal',
+      paidBy: expense.paidBy?._id || expense.paidBy,
+      receipt: expense.receipt || '',
+      paymentMethod: expense.paymentMethod || 'UPI',
+      date: expense.date ? new Date(expense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    });
+    
+    const participantIds = expense.participants.map(p => p._id || p);
+    setEditSelectedParticipants(participantIds);
+    
+    const customSharesMap = {};
+    activeGroup.members.forEach(member => {
+      customSharesMap[member.user._id] = '';
+    });
+    if (expense.splitType === 'unequal' && expense.splitDetails) {
+      expense.splitDetails.forEach(split => {
+        const uId = split.user?._id || split.user;
+        customSharesMap[uId] = split.amount.toString();
+      });
+    }
+    setEditCustomShares(customSharesMap);
+    setEditExpenseError('');
+    setShowEditExpenseModal(true);
+  };
+
+  const handleToggleEditParticipant = (userId) => {
+    setEditSelectedParticipants((current) =>
+      current.includes(userId)
+        ? current.filter((id) => id !== userId)
+        : [...current, userId]
+    );
+  };
+
+  const updateEditCustomShare = (userId, value) => {
+    setEditCustomShares((current) => ({ ...current, [userId]: value }));
+  };
+
+  const handleEditReceiptUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setEditExpenseError('Receipt image must be less than 5MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditExpenseForm((prev) => ({ ...prev, receipt: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveEditExpense = async (e) => {
+    e.preventDefault();
+    if (!activeGroup || !editingExpenseId) return;
+    setEditExpenseError('');
+    setIsSubmittingEditExpense(true);
+
+    const amount = parseFloat(editExpenseForm.amount);
+    if (!amount || amount <= 0) {
+      setEditExpenseError('Please enter a valid amount greater than zero.');
+      setIsSubmittingEditExpense(false);
+      return;
+    }
+
+    if (editSelectedParticipants.length === 0) {
+      setEditExpenseError('Please select at least one participant.');
+      setIsSubmittingEditExpense(false);
+      return;
+    }
+
+    if (!editExpenseForm.paidBy) {
+      setEditExpenseError('Please select who paid for this expense.');
+      setIsSubmittingEditExpense(false);
+      return;
+    }
+
+    const baseShare = Number((amount / editSelectedParticipants.length).toFixed(2));
+    const splitDetails = editSelectedParticipants.map((userId, index) => {
+      let shareAmount;
+      if (editExpenseForm.splitType === 'equal') {
+        if (index === editSelectedParticipants.length - 1) {
+          shareAmount = Number((amount - (baseShare * (editSelectedParticipants.length - 1))).toFixed(2));
+        } else {
+          shareAmount = baseShare;
+        }
+      } else {
+        shareAmount = Number(editCustomShares[userId] || 0);
+      }
+      return { user: userId, amount: shareAmount };
+    });
+
+    const splitSum = splitDetails.reduce((sum, item) => sum + item.amount, 0);
+    if (Math.abs(splitSum - amount) > 0.1) {
+      setEditExpenseError('Split amount does not match total expense. Please adjust the shares.');
+      setIsSubmittingEditExpense(false);
+      return;
+    }
+
+    const success = await updateExpense(editingExpenseId, {
+      ...editExpenseForm,
+      amount,
+      groupId: id,
+      participants: editSelectedParticipants,
+      splitDetails
+    });
+
+    if (success) {
+      setShowEditExpenseModal(false);
+      setEditingExpenseId(null);
+    } else {
+      setEditExpenseError(error || 'Unable to update expense. Please try again.');
+    }
+
+    setIsSubmittingEditExpense(false);
+  };
+
+  const handleShowExpenseHistory = async (expense) => {
+    setSelectedExpenseForHistory(expense);
+    setLoadingHistory(true);
+    setShowHistoryModal(true);
+    try {
+      const historyList = await fetchExpenseEditHistory(expense._id);
+      setExpenseEditHistoryList(historyList);
+    } catch (err) {
+      console.error('Error fetching history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleDeleteExpenseClick = async (expenseId) => {
+    if (window.confirm('Are you sure you want to delete this expense? This action cannot be undone.')) {
+      const success = await deleteExpense(expenseId, id);
+      if (!success) {
+        alert(error || 'Failed to delete expense.');
+      }
+    }
   };
 
   const handleAddMember = async () => {
@@ -432,92 +741,246 @@ const GroupDetails = () => {
         </div>
       )}
 
-      <div className="space-y-4">
-        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 md:p-8 border shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-tight">{activeGroup.name}</h2>
-                <p className="text-slate-500 mt-1 text-sm">{activeGroup.description}</p>
+      <div className="space-y-6">
+        {/* Horizontal Gradient Header Card */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 dark:from-slate-900 dark:to-slate-800 rounded-2xl md:rounded-[2rem] p-4 md:p-8 text-white shadow-sm border-none">
+          {/* Subtle background abstract shapes */}
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-blue-100 to-transparent pointer-events-none" />
+          
+          <div className="relative flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 md:gap-6 min-w-0">
+                {/* Compact icon container */}
+                <div className="w-10 h-10 md:w-20 md:h-20 rounded-full border-2 border-white/20 bg-white/10 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-inner">
+                  <svg className="w-5 h-5 md:w-10 md:h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg md:text-3xl font-extrabold md:font-black tracking-tight leading-tight truncate">{activeGroup.name}</h2>
+                  <p className="text-blue-100/90 dark:text-slate-300 text-[10px] md:text-sm mt-0.5 md:mt-1.5 font-medium max-w-xl line-clamp-1 md:line-clamp-2">
+                    {activeGroup.description || 'No description provided.'}
+                  </p>
+                </div>
               </div>
+
+              {/* Edit/Delete Top-Right 3-dot dropdown menu on Mobile, and inline on Desktop */}
               {isAdmin && (
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setShowEditModal(true)}
-                    className="p-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 rounded-2xl text-slate-600 dark:text-slate-300 transition-all"
-                    title="Edit Group"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button 
-                    onClick={handleDeleteGroup}
-                    disabled={isDeleting}
-                    className="p-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 rounded-2xl text-rose-600 transition-all"
-                    title="Delete Group"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                <div className="relative shrink-0 flex items-center gap-2">
+                  {/* Desktop Actions */}
+                  <div className="hidden md:flex gap-2">
+                    <button 
+                      onClick={() => setShowEditModal(true)}
+                      className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 rounded-2xl text-xs md:text-sm font-bold flex items-center gap-1.5 transition-all shadow-sm border text-slate-700"
+                    >
+                      <Edit2 size={16} /> Edit
+                    </button>
+                    <button 
+                      onClick={handleDeleteGroup}
+                      disabled={isDeleting}
+                      className="px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 rounded-2xl text-xs md:text-sm font-bold flex items-center gap-1.5 transition-all shadow-sm border"
+                    >
+                      <Trash2 size={16} /> Delete
+                    </button>
+                  </div>
+
+                  {/* Mobile Actions 3-dot Toggle Button */}
+                  <div className="md:hidden relative">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenGroupMenu(!openGroupMenu);
+                      }}
+                      className="p-2 hover:bg-white/10 active:bg-white/20 rounded-xl text-white transition-colors"
+                      title="Group Options"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+                      </svg>
+                    </button>
+
+                    {/* Compact Dropdown Menu */}
+                    <AnimatePresence>
+                      {openGroupMenu && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setOpenGroupMenu(false)} />
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                            className="absolute right-0 mt-2 w-36 z-50 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-2xl p-1.5 shadow-xl text-slate-800 dark:text-white"
+                          >
+                            <button
+                              onClick={() => {
+                                setOpenGroupMenu(false);
+                                setShowEditModal(true);
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2"
+                            >
+                              <Edit2 size={13} /> Edit Group
+                            </button>
+                            <button
+                              onClick={() => {
+                                setOpenGroupMenu(false);
+                                handleDeleteGroup();
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-400 flex items-center gap-2"
+                            >
+                              <Trash2 size={13} /> Delete Group
+                            </button>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-              <button onClick={() => setShowExpenseModal(true)} className="flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl px-4 py-3 text-sm font-bold transition-all shadow-lg shadow-primary-200 dark:shadow-none">
-                <Plus size={18} /> Expense
+
+            {/* Compact pill action buttons, horizontally scrollable on mobile */}
+            <div className="flex items-center gap-2 w-full overflow-x-auto no-scrollbar scroll-smooth pt-2 md:pt-4 border-t border-white/10 pb-0.5">
+              <button 
+                onClick={() => setShowExpenseModal(true)} 
+                className="bg-white text-primary-600 hover:bg-slate-50 rounded-full px-4 py-2 text-xs md:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0 h-9"
+              >
+                <Plus size={14} className="stroke-[3]" /> Expense
               </button>
               {isAdmin && (
-                <button onClick={() => setShowAddMember(true)} className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm font-bold transition-all">
-                  <UserPlus size={18} /> Member
+                <button 
+                  onClick={() => setShowAddMember(true)} 
+                  className="bg-white/15 text-white border border-white/10 hover:bg-white/20 rounded-full px-4 py-2 text-xs md:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 h-9"
+                >
+                  <UserPlus size={14} className="stroke-[3]" /> Member
                 </button>
               )}
-              <button onClick={() => setShowSettlementModal(true)} className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 rounded-2xl px-4 py-3 text-sm font-bold transition-all">
-                <HandCoins size={18} /> Settle
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-3 grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Total spent</p>
-              <p className="text-lg md:text-xl font-bold mt-1">{formatCurrency(totalExpense)}</p>
-            </div>
-            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Paid by you</p>
-              <p className="text-lg md:text-xl font-bold mt-1 text-emerald-600">{formatCurrency(currentMemberPaid)}</p>
-            </div>
-            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Your share</p>
-              <p className="text-lg md:text-xl font-bold mt-1 text-slate-900 dark:text-slate-100">{formatCurrency(currentMemberShare)}</p>
-            </div>
-            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Members</p>
-              <p className="text-lg md:text-xl font-bold mt-1">{activeGroup.members.length}</p>
-            </div>
-            <div className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 md:p-5 border col-span-2 lg:col-span-1">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Pending</p>
-              <p className="text-lg md:text-xl font-bold mt-1">{pendingRequests.length}</p>
-            </div>
-          </div>
-
-          <div className="mt-8 flex overflow-x-auto no-scrollbar gap-2 -mx-2 px-2">
-            {[
-              { key: 'overview', label: 'Overview' },
-              { key: 'expenses', label: 'Expenses' },
-              { key: 'members', label: 'Members' },
-              { key: 'settlements', label: 'Settlements' }
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setTab(item.key)}
-                className={cn(
-                  'rounded-full px-5 py-2.5 text-sm font-bold transition-all whitespace-nowrap',
-                  tab === item.key ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200'
-                )}
+              <button 
+                onClick={() => setShowSettlementModal(true)} 
+                className="bg-white/15 text-white border border-white/10 hover:bg-white/20 rounded-full px-4 py-2 text-xs md:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 h-9"
               >
-                {item.label}
+                <QrCode size={14} className="stroke-[3]" /> Settle
               </button>
-            ))}
+            </div>
           </div>
+        </div>
+
+        {/* Standalone White Card for Statistics Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+          
+          {/* Total Spent */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 flex items-center justify-between gap-3 shadow-sm transition-all hover:shadow-md">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Total Spent</p>
+              <p className="text-sm md:text-xl font-extrabold mt-1.5 text-slate-800 dark:text-white truncate">
+                {formatCurrency(totalExpense)}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Paid by you */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 flex items-center justify-between gap-3 shadow-sm transition-all hover:shadow-md">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Paid by you</p>
+              <p className="text-sm md:text-xl font-extrabold mt-1.5 text-emerald-600 dark:text-emerald-400 truncate">
+                {formatCurrency(currentMemberPaid)}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Your Share */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 flex items-center justify-between gap-3 shadow-sm transition-all hover:shadow-md">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Your Share</p>
+              <p className="text-sm md:text-xl font-extrabold mt-1.5 text-slate-800 dark:text-white truncate">
+                {formatCurrency(currentMemberShare)}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Members */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 flex items-center justify-between gap-3 shadow-sm transition-all hover:shadow-md">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Members</p>
+              <p className="text-sm md:text-xl font-extrabold mt-1.5 text-slate-800 dark:text-white truncate">
+                {activeGroup.members.length}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Pending */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 flex items-center justify-between gap-3 shadow-sm transition-all hover:shadow-md col-span-2 md:col-span-1">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Pending</p>
+              <p className="text-sm md:text-xl font-extrabold mt-1.5 text-slate-800 dark:text-white truncate">
+                {pendingRequests.length}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Clean Line Tabs */}
+        <div className="flex overflow-x-auto no-scrollbar gap-5 border-b border-slate-200 dark:border-slate-800 px-1 mt-4 shrink-0">
+          {[
+            { key: 'overview', label: 'Overview' },
+            { key: 'expenses', label: 'Expenses' },
+            { key: 'members', label: 'Members' },
+            { key: 'settlements', label: 'Settlements' }
+          ].map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setTab(item.key)}
+              className={cn(
+                "pb-2.5 text-xs font-bold transition-all relative whitespace-nowrap",
+                tab === item.key
+                  ? "text-primary-600 dark:text-blue-400 font-extrabold"
+                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+              )}
+            >
+              {item.label}
+              {tab === item.key && (
+                <motion.div 
+                  layoutId="active-tab-indicator"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 dark:bg-blue-400"
+                />
+              )}
+            </button>
+          ))}
         </div>
 
         {tab === 'overview' && (
@@ -617,83 +1080,357 @@ const GroupDetails = () => {
             </div>
           </div>
         )}
-
         {tab === 'expenses' && (
-          <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border shadow-sm">
-              <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="grid gap-4 md:gap-6 lg:grid-cols-[1.6fr_1fr]">
+            {/* Left Column: Expense History */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl p-4 md:p-6 border border-slate-100 dark:border-slate-800 shadow-sm h-fit">
+              <div className="flex items-center justify-between gap-4 mb-5">
                 <div>
-                  <h2 className="text-xl font-bold">Expense History</h2>
-                  <p className="text-slate-500 text-sm">Track every spend in the group.</p>
+                  <h2 className="text-base md:text-xl font-bold text-slate-800 dark:text-white">Expense History</h2>
+                  <p className="text-slate-500 text-xs">Track every spend in the group.</p>
                 </div>
-                <button onClick={() => setShowExpenseModal(true)} className="rounded-2xl bg-primary-600 text-white px-4 py-2 font-semibold">Add Expense</button>
+                <button 
+                  onClick={() => setShowExpenseModal(true)} 
+                  className="rounded-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-primary-500/10 active:scale-95 transition-all h-8"
+                >
+                  <Plus size={12} className="stroke-[3]" /> Add Expense
+                </button>
               </div>
-              <div className="space-y-4">
+
+              <div className="space-y-3">
                 {sortedExpenses.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200 p-8 md:p-12 text-center text-slate-400">
-                    <Receipt size={40} className="mx-auto mb-4" />
+                  <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 md:p-12 text-center text-slate-400">
+                    <Receipt size={32} className="mx-auto mb-3 text-slate-300 dark:text-slate-700" />
                     No expenses recorded yet.
                   </div>
                 ) : (
-                  sortedExpenses.map((expense) => (
-                    <div key={expense._id} className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
-                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-4">
-                        <div>
-                          <p className="text-xs md:text-sm text-slate-500">{new Date(expense.createdAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true })}</p>
-                          <p className="font-semibold">{expense.description}</p>
-                          <p className="text-[10px] md:text-xs text-slate-400">
-                            Paid by {expense.paidBy?.name === currentUser?.name ? 'You' : expense.paidBy?.name}
-                            {expense.addedBy && expense.addedBy?._id !== expense.paidBy?._id && (
-                              <span className="ml-1 opacity-75">• Added by {expense.addedBy?.name === currentUser?.name ? 'You' : expense.addedBy?.name}</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="text-right md:text-left">
-                          <p className="text-lg font-semibold">₹{expense.amount.toFixed(2)}</p>
-                          <p className="text-xs text-slate-500 mb-2">{expense.category || 'General'} • {expense.paymentMethod || 'UPI'}</p>
-                          {expense.receipt && (
-                            <button
-                              onClick={() => setViewReceiptUrl(expense.receipt)}
-                              className="inline-flex items-center gap-1 px-3 py-1 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-full text-xs font-semibold hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
-                            >
-                              <Image size={12} /> View Proof
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {expense.splitDetails?.length > 0 && (
-                        <div className="mt-4 rounded-2xl bg-white dark:bg-slate-900 p-4 border">
-                          <p className="text-sm text-slate-500 mb-2">Split breakdown</p>
-                          <div className="grid gap-2">
-                            {expense.splitDetails.map((split) => {
-                              const member = activeGroup.members.find((item) => item.user._id === split.user || item.user._id === split.user?._id || item.user._id === split.user?.toString());
-                              const memberName = member?.user.name || (split.user?.name || 'Member');
-                              return (
-                                <div key={split.user?._id || split.user} className="flex items-center justify-between text-sm text-slate-600">
-                                  <span>{memberName}</span>
-                                  <span>₹{split.amount.toFixed(2)}</span>
-                                </div>
-                              );
-                            })}
+                  sortedExpenses.map((expense) => {
+                    const isPaidByMe = expense.paidBy?.name === currentUser?.name || expense.paidBy?._id === currentUser?._id;
+                    const paidByText = isPaidByMe ? 'Paid by You' : `Paid by ${expense.paidBy?.name || 'Member'}`;
+                    
+                    return (
+                      <div key={expense._id} className="rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 p-3.5 md:p-5 border border-slate-100 dark:border-slate-850 transition-all hover:shadow-sm">
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="min-w-0">
+                            {/* Date formatted as May 18, 2026 • 9:42 AM */}
+                            <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                              <span>
+                                {new Date(expense.date || expense.createdAt).toLocaleString('en-US', { 
+                                  month: 'short', 
+                                  day: '2-digit', 
+                                  year: 'numeric', 
+                                  hour: 'numeric', 
+                                  minute: '2-digit', 
+                                  hour12: true 
+                                }).replace(',', '')}
+                              </span>
+                              {expense.updatedAt && new Date(expense.updatedAt).getTime() - new Date(expense.createdAt).getTime() > 1000 && (
+                                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-450 border border-amber-100/50 dark:border-amber-900/30 text-[8px] font-black uppercase tracking-wider">
+                                  <svg className="w-2 h-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                                  </svg>
+                                  Edited ({new Date(expense.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-extrabold text-sm md:text-base text-slate-800 dark:text-white mt-1 truncate">
+                              {expense.description}
+                            </p>
+                            <p className="text-[10px] font-bold text-primary-600 dark:text-blue-400 mt-1">
+                              {paidByText}
+                              {expense.addedBy && expense.addedBy?._id !== expense.paidBy?._id && (
+                                <span className="ml-1 opacity-70 font-semibold">• Added by {expense.addedBy?.name === currentUser?.name ? 'You' : expense.addedBy?.name}</span>
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="flex items-start gap-2.5 shrink-0">
+                            <div className="text-right">
+                              <p className="text-sm md:text-lg font-black text-slate-900 dark:text-white">
+                                ₹{expense.amount.toFixed(2)}
+                              </p>
+                              <div className="flex items-center gap-1 mt-1 justify-end">
+                                <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 rounded-md">
+                                  {expense.category || 'General'}
+                                </span>
+                              </div>
+                              {expense.receipt && (
+                                <button
+                                  onClick={() => setViewReceiptUrl(expense.receipt)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 mt-1.5 border border-blue-200 dark:border-blue-800/80 text-primary-600 dark:text-blue-400 rounded-lg text-[9px] font-black hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors"
+                                >
+                                  <Image size={8} /> Proof
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Dropdown 3 vertical dots menu */}
+                            <div className="relative mt-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(openDropdownId === expense._id ? null : expense._id);
+                                }}
+                                className="p-1 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-slate-650 transition-colors"
+                              >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <circle cx="12" cy="12" r="1.5" />
+                                  <circle cx="12" cy="5" r="1.5" />
+                                  <circle cx="12" cy="19" r="1.5" />
+                                </svg>
+                              </button>
+                              
+                              {openDropdownId === expense._id && (
+                                <>
+                                  <div className="fixed inset-0 z-20" onClick={() => setOpenDropdownId(null)} />
+                                  <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-slate-900 border rounded-2xl shadow-xl py-1 z-30 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100">
+                                    {canEditExpense(expense) && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdownId(null);
+                                          handleShowEditExpenseModal(expense);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-805 flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200"
+                                      >
+                                        <Edit2 size={12} /> Edit Expense
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenDropdownId(null);
+                                        handleShowExpenseHistory(expense);
+                                      }}
+                                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-805 flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200"
+                                    >
+                                      <History size={12} /> View History
+                                    </button>
+                                    {canEditExpense(expense) && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenDropdownId(null);
+                                          handleDeleteExpenseClick(expense._id);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-400 flex items-center gap-1.5 font-bold border-t border-slate-100/55 dark:border-slate-800/60"
+                                      >
+                                        <Trash2 size={12} /> Delete Expense
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ))
+
+                        {/* Compact Split Breakdown (Always Visible by Default) */}
+                        {expense.splitDetails?.length > 0 && (
+                          <div className="mt-3 border border-slate-100/50 dark:border-slate-800/50 rounded-xl bg-white dark:bg-slate-900/60 overflow-hidden shadow-sm">
+                            <div className="bg-slate-50/50 dark:bg-slate-950/20 px-3 py-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                              <span className="text-primary-600 dark:text-blue-400 font-extrabold text-[9px] tracking-wider uppercase">Shares breakdown</span>
+                            </div>
+                            <div className="p-2 space-y-1.5">
+                              {expense.splitDetails.map((split) => {
+                                const member = activeGroup.members.find((item) => item.user._id === split.user || item.user._id === split.user?._id || item.user._id === split.user?.toString());
+                                const memberName = member?.user.name || (split.user?.name || 'Member');
+                                const initials = memberName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'M';
+                                const isPayer = (expense.paidBy?._id || expense.paidBy) === (split.user?._id || split.user);
+                                
+                                return (
+                                  <div key={split.user?._id || split.user} className={cn(
+                                    "flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg transition-all border",
+                                    isPayer 
+                                      ? "bg-emerald-50/20 border-emerald-100/20 text-emerald-800 dark:bg-emerald-950/10 dark:border-emerald-900/20 dark:text-emerald-400" 
+                                      : "bg-white dark:bg-slate-950 border-slate-100/70 dark:border-slate-800/40 text-slate-600 dark:text-slate-400"
+                                  )}>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <div className={cn(
+                                        "w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black shadow-sm shrink-0",
+                                        isPayer 
+                                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400" 
+                                          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                                      )}>
+                                        {initials}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="font-extrabold truncate">{memberName}</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <p className="font-black text-slate-800 dark:text-slate-200">₹{split.amount.toFixed(2)}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
-            <div className="bg-slate-50 dark:bg-slate-950 rounded-3xl p-8 border">
-              <h2 className="text-xl font-bold mb-4">Expense insights</h2>
-              <p className="text-slate-500 text-sm">See how spending is distributed across members and categories.</p>
-              <div className="mt-6 space-y-4">
-                <div className="rounded-3xl bg-white dark:bg-slate-900 p-5 border">
-                  <p className="text-sm text-slate-500">Most recent expense</p>
-                  <p className="mt-2 font-semibold">{expenses[0]?.description || 'No expenses yet'}</p>
+
+            {/* Right Column: Expense Insights */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 border shadow-sm h-fit space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Expense Insights</h2>
+                <p className="text-slate-500 text-xs md:text-sm mt-1">Real-time smart spending diagnostics & analytics dashboard.</p>
+              </div>
+
+              {/* 2-Column Responsive Card Grid inside Insights */}
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                {/* 1. Monthly Spending Trend */}
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monthly Spending Trend</p>
+                  {insightsData.monthsData.length === 0 ? (
+                    <p className="text-xs text-slate-450">No monthly data available</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {insightsData.monthsData.map(([month, val]) => {
+                        const pct = Math.round((val / insightsData.maxMonthVal) * 100) || 1;
+                        return (
+                          <div key={month} className="space-y-1">
+                            <div className="flex justify-between text-[10px] font-extrabold text-slate-655 dark:text-slate-455">
+                              <span>{month}</span>
+                              <span className="font-black">₹{val.toFixed(0)}</span>
+                            </div>
+                            <div className="w-full bg-slate-200/50 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
+                              <div className="bg-blue-600 dark:bg-blue-500 h-full rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="rounded-3xl bg-white dark:bg-slate-900 p-5 border">
-                  <p className="text-sm text-slate-500">Average expense</p>
-                  <p className="mt-2 font-semibold">₹{expenses.length ? (expenses.reduce((sum, item) => sum + item.amount, 0) / expenses.length).toFixed(2) : '0.00'}</p>
+
+                {/* 2. Highest Spender */}
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 bg-slate-50/50 dark:bg-slate-950/20 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Highest Spender</p>
+                    <p className="mt-2 font-extrabold text-slate-800 dark:text-white text-xs md:text-sm truncate">
+                      {insightsData.topSpenderName}
+                    </p>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-black mt-0.5">
+                      ₹{insightsData.topSpenderVal.toFixed(2)} total
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-amber-50 dark:bg-amber-950/40 text-amber-500 rounded-full flex items-center justify-center shrink-0 shadow-inner">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* 3. Most Used Category */}
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 bg-slate-50/50 dark:bg-slate-950/20 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Most Used Category</p>
+                    <p className="mt-2 font-extrabold text-slate-800 dark:text-white text-xs md:text-sm truncate">
+                      {insightsData.topCat}
+                    </p>
+                    <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-black mt-0.5">
+                      {insightsData.topCatPct}% of group spend
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 rounded-full flex items-center justify-center shrink-0 shadow-inner">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="9" />
+                      <rect x="14" y="3" width="7" height="5" />
+                      <rect x="14" y="12" width="7" height="9" />
+                      <rect x="3" y="16" width="7" height="5" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* 4. Your Contribution Percentage */}
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 bg-slate-50/50 dark:bg-slate-950/20 space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Your Share</p>
+                  <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-655 dark:text-slate-455 mt-1.5 font-black">
+                    <span>{insightsData.myPct}% Contributed</span>
+                    <span>₹{insightsData.myPaidSum.toFixed(0)}</span>
+                  </div>
+                  <div className="w-full bg-slate-200/50 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
+                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${insightsData.myPct}%` }} />
+                  </div>
+                </div>
+
+                {/* 5. Pending Settlement Summary */}
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 bg-slate-50/50 dark:bg-slate-950/20 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pending Settlements</p>
+                    <p className="mt-2 font-extrabold text-slate-800 dark:text-white text-xs md:text-sm">
+                      {insightsData.pendingCount} requests
+                    </p>
+                    <p className={cn("text-[10px] font-black mt-0.5", insightsData.pendingCount > 0 ? "text-rose-500" : "text-slate-450")}>
+                      {insightsData.pendingCount > 0 ? "Requires review" : "Up to date"}
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-rose-50 dark:bg-rose-950/40 text-rose-500 rounded-full flex items-center justify-center shrink-0 shadow-inner">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* 6. Average Expense per Member */}
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 bg-slate-50/50 dark:bg-slate-950/20 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Average / Member</p>
+                    <p className="mt-2 font-extrabold text-slate-800 dark:text-white text-xs md:text-sm">
+                      ₹{insightsData.avgAmt.toFixed(2)}
+                    </p>
+                    <p className="text-[10px] text-slate-450 font-semibold mt-0.5">
+                      Per participant share
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/40 text-blue-500 rounded-full flex items-center justify-center shrink-0 shadow-inner">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* 7. Total Transactions Count */}
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-800/80 p-4 bg-slate-50/50 dark:bg-slate-950/20 flex items-center justify-between gap-4 sm:col-span-2">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Transaction Activity</p>
+                    <p className="mt-2 font-extrabold text-slate-800 dark:text-white text-xs md:text-sm">
+                      {insightsData.totalTransactions} transactions recorded
+                    </p>
+                    <p className="text-[10px] text-slate-455 font-semibold mt-0.5">
+                      Total historical group ledger events
+                    </p>
+                  </div>
+                  <div className="w-9 h-9 bg-purple-50 dark:bg-purple-950/40 text-purple-500 rounded-full flex items-center justify-center shrink-0 shadow-inner">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="16" rx="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* 8. Smart Insights List */}
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-5 space-y-3">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Smart AI Insights</p>
+                <div className="space-y-2">
+                  {insightsData.smartInsightsList.map((insight, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs font-bold text-slate-600 dark:text-slate-350">
+                      <span className="text-primary-500 shrink-0 mt-0.5">💡</span>
+                      <span>{insight}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -756,62 +1493,91 @@ const GroupDetails = () => {
         )}
 
         {tab === 'settlements' && (
-          <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border shadow-sm">
-              <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="grid gap-4 md:gap-6 lg:grid-cols-[1.5fr_1fr]">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl p-4 md:p-6 border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center justify-between gap-4 mb-5">
                 <div>
-                  <h2 className="text-xl font-bold">Settlements</h2>
-                  <p className="text-slate-500 text-sm">Manage pending payments and history.</p>
+                  <h2 className="text-base md:text-xl font-bold">Settlements</h2>
+                  <p className="text-slate-500 text-xs">Manage pending payments and history.</p>
                 </div>
-                <button onClick={() => setShowSettlementModal(true)} className="rounded-2xl bg-primary-600 text-white px-4 py-2 font-semibold">New request</button>
+                <button 
+                  onClick={() => setShowSettlementModal(true)} 
+                  className="rounded-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 text-xs font-black uppercase tracking-wider shadow-md shadow-primary-500/10 active:scale-95 transition-all"
+                >
+                  New request
+                </button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {sortedSettlements.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200 p-8 md:p-12 text-center text-slate-400">
-                    <HandCoins size={40} className="mx-auto mb-4" />
+                  <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 md:p-12 text-center text-slate-400">
+                    <HandCoins size={32} className="mx-auto mb-3 text-slate-300 dark:text-slate-700" />
                     No settlement requests yet.
                   </div>
                 ) : (
                   sortedSettlements.map((settlement) => (
-                    <div key={settlement._id} className="rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
-                      <div className="flex items-start justify-between gap-2 md:gap-4">
-                        <div>
-                          <p className="text-xs md:text-sm text-slate-500">{new Date(settlement.createdAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true })}</p>
-                          <p className="font-semibold">{settlement.status === 'pending' ? 'Pending payment' : settlement.status === 'completed' ? 'Accepted' : 'Declined'}</p>
-                          <p className="text-sm text-slate-500">{settlement.note || 'No description'}</p>
-                          <p className="text-[10px] md:text-xs text-slate-400 mt-1">
+                    <div key={settlement._id} className="rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 p-3.5 md:p-5 border border-slate-100 dark:border-slate-850">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {new Date(settlement.createdAt).toLocaleString('en-US', { 
+                              day: '2-digit', 
+                              month: 'short', 
+                              year: 'numeric', 
+                              hour: 'numeric', 
+                              minute: 'numeric', 
+                              hour12: true 
+                            }).replace(',', '')}
+                          </p>
+                          <p className="font-extrabold text-sm text-slate-800 dark:text-white mt-1">
+                            {settlement.status === 'pending' ? 'Pending Payment' : settlement.status === 'completed' ? 'Accepted' : 'Declined'}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">{settlement.note || 'No description'}</p>
+                          <p className="text-[10px] font-bold text-primary-600 dark:text-blue-400 mt-1.5 leading-relaxed">
                             {settlement.payerId?.name === currentUser?.name ? 'You' : settlement.payerId?.name} paid {settlement.receiverId?.name === currentUser?.name ? 'You' : settlement.receiverId?.name}
                             {settlement.addedBy && settlement.addedBy?._id !== (settlement.payerId?._id || settlement.payerId) && (
-                              <span className="ml-1 opacity-75">• Added by {settlement.addedBy?.name === currentUser?.name ? 'You' : settlement.addedBy?.name}</span>
+                              <span className="ml-1 opacity-70 font-semibold">• Added by {settlement.addedBy?.name === currentUser?.name ? 'You' : settlement.addedBy?.name}</span>
                             )}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-semibold">₹{settlement.amount.toFixed(2)}</p>
-                          <p className="text-xs text-slate-500">{settlement.paymentType}</p>
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-black text-slate-900 dark:text-white">₹{settlement.amount.toFixed(2)}</p>
+                          <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md mt-1.5 inline-block">{settlement.paymentType}</p>
                         </div>
                       </div>
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        <span>{renderSettlementStatus(settlement.status)}</span>
+                      
+                      <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-[10px] font-black">{renderSettlementStatus(settlement.status)}</span>
                         <button
                           onClick={() => setSelectedSettlement(settlement)}
-                          className="rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-4 py-2 text-sm font-semibold"
+                          className="rounded-full border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-650 dark:text-slate-300 transition-colors"
                         >
-                          View receipt
+                          View Receipt
                         </button>
                       </div>
+
                       {settlement.status === 'pending' && (
-                        <div className="mt-4 text-sm text-slate-600">
+                        <div className="mt-3 text-[10px] font-bold text-slate-500 italic bg-white dark:bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-850">
                           {settlement.payerId?._id?.toString() === currentUser?._id?.toString() || settlement.payerId?.toString() === currentUser?._id?.toString()
                             ? `Request sent to ${settlement.receiverId?.name || 'selected member'}`
                             : `Request received from ${settlement.payerId?.name || 'payer'}`}
-                      </div>
+                        </div>
                       )}
+
                       {settlement.status === 'pending' &&
                         (settlement.receiverId?._id?.toString() === currentUser?._id?.toString() || settlement.receiverId?.toString() === currentUser?._id?.toString()) && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <button onClick={() => handleRespond(settlement._id, 'accept')} className="rounded-2xl bg-primary-600 text-white px-4 py-2 text-sm font-semibold">Accept</button>
-                          <button onClick={() => handleRespond(settlement._id, 'reject')} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold">Decline</button>
+                        <div className="mt-3 flex gap-2 w-full sm:w-auto">
+                          <button 
+                            onClick={() => handleRespond(settlement._id, 'accept')} 
+                            className="flex-1 sm:flex-none rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-black uppercase tracking-wider shadow-sm transition-all active:scale-95 h-9"
+                          >
+                            Accept
+                          </button>
+                          <button 
+                            onClick={() => handleRespond(settlement._id, 'reject')} 
+                            className="flex-1 sm:flex-none rounded-full border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-350 px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95 h-9"
+                          >
+                            Decline
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1515,6 +2281,328 @@ const GroupDetails = () => {
           Group Chat
         </span>
       </button>
+
+      {/* Edit Expense Modal */}
+      <AnimatePresence>
+        {showEditExpenseModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 px-4 py-8 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 p-6 rounded-3xl w-full max-w-xl shadow-2xl max-h-[calc(100vh-4rem)] overflow-hidden mx-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Edit Expense</h2>
+                <button onClick={() => setShowEditExpenseModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditExpense} className="space-y-4 overflow-y-auto pr-1 max-h-[calc(100vh-14rem)]">
+                <div>
+                  <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+                    Description <Info size={14} className="text-slate-300" />
+                  </label>
+                  <input
+                    type="text"
+                    value={editExpenseForm.description}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, description: e.target.value })}
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                    placeholder="e.g. Pizza Night"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Paid By</label>
+                  <select
+                    value={editExpenseForm.paidBy}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, paidBy: e.target.value })}
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                    required
+                  >
+                    <option value="" disabled>Select who paid</option>
+                    {activeGroup.members.map((member) => (
+                      <option key={member.user._id} value={member.user._id}>
+                        {member.user.name} {member.user._id === currentUser?._id ? '(You)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Amount (Rs.)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editExpenseForm.amount}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, amount: e.target.value })}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Split type</label>
+                    <select
+                      value={editExpenseForm.splitType}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, splitType: e.target.value })}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                    >
+                      <option value="equal">Equal</option>
+                      <option value="unequal">Custom</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Payment Method</label>
+                    <select
+                      value={editExpenseForm.paymentMethod}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, paymentMethod: e.target.value })}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                    >
+                      <option value="UPI">UPI</option>
+                      <option value="CASH">Cash</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Expense Date</label>
+                    <input
+                      type="date"
+                      value={editExpenseForm.date}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, date: e.target.value })}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500 font-bold"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Category</label>
+                    <input
+                      type="text"
+                      value={editExpenseForm.category}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, category: e.target.value })}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none border focus:border-primary-500"
+                      placeholder="Category (e.g. Food, Travel)"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center hover:border-primary-500 transition-colors relative overflow-hidden group">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEditReceiptUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex flex-col items-center justify-center pointer-events-none">
+                    {editExpenseForm.receipt ? (
+                      <>
+                        <div className="relative w-16 h-16 rounded-xl overflow-hidden mb-2 border">
+                          <img src={editExpenseForm.receipt} alt="Receipt preview" className="w-full h-full object-cover" />
+                        </div>
+                        <p className="text-sm font-semibold text-primary-600">Proof attached</p>
+                        <p className="text-xs text-slate-500 mt-1">Click to change</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/30 transition-colors">
+                          <UploadCloud size={24} className="text-slate-400 group-hover:text-primary-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Upload payment proof</p>
+                        <p className="text-xs text-slate-500 mt-1">Optional (Image max 5MB)</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
+                  <p className="text-sm font-semibold mb-3">Participants</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {activeGroup.members.map((member) => {
+                      const checked = editSelectedParticipants.includes(member.user._id);
+                      return (
+                        <label key={member.user._id} className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer hover:border-primary-500 font-medium text-slate-700 dark:text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleToggleEditParticipant(member.user._id)}
+                            className="h-4 w-4 accent-primary-600"
+                          />
+                          <span className="text-sm font-medium">{member.user.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {editExpenseForm.splitType === 'unequal' && (
+                  <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-4 border">
+                    <p className="text-sm font-semibold mb-3">Custom share amounts</p>
+                    <div className="space-y-3">
+                      {activeGroup.members
+                        .filter((member) => editSelectedParticipants.includes(member.user._id))
+                        .map((member) => (
+                          <div key={member.user._id} className="flex items-center gap-3">
+                            <img src={member.user.avatar} className="w-10 h-10 rounded-full" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold">{member.user.name}</p>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={editCustomShares[member.user._id] ?? ''}
+                                onChange={(e) => updateEditCustomShare(member.user._id, e.target.value)}
+                                className="w-full p-3 bg-white dark:bg-slate-900 rounded-2xl border focus:border-primary-500 outline-none"
+                                placeholder="Share amount"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {editExpenseError && (
+                  <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-600 p-4 text-sm text-rose-700 dark:text-rose-200 font-bold">
+                    {editExpenseError}
+                  </div>
+                )}
+
+                <div className="rounded-3xl bg-slate-50 dark:bg-slate-950 p-5 border">
+                  <p className="text-sm font-semibold mb-3">Preview</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {editPreviewShares.map((item) => (
+                      <div key={item.userId} className="flex items-center justify-between rounded-2xl bg-white dark:bg-slate-900 p-3 border text-slate-700 dark:text-slate-300">
+                        <span className="text-sm">{item.name}</span>
+                        <span className="font-semibold">₹{item.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditExpenseModal(false)}
+                    className="w-full px-4 py-4 rounded-2xl border font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingEditExpense}
+                    className="w-full px-4 py-4 rounded-2xl bg-primary-600 text-white font-bold shadow-lg shadow-primary-200 dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingEditExpense ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Expense Edit History Modal */}
+      <AnimatePresence>
+        {showHistoryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowHistoryModal(false)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl p-6 md:p-8 max-h-[calc(100vh-4rem)] flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-6 shrink-0">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <History className="text-amber-500" size={22} /> Edit History
+                  </h3>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Changes made to "{selectedExpenseForHistory?.description || 'Expense'}"
+                  </p>
+                </div>
+                <button onClick={() => setShowHistoryModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-1 space-y-6 py-2">
+                {loadingHistory ? (
+                  <div className="text-center py-12 text-slate-500">Loading edit history...</div>
+                ) : expenseEditHistoryList.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-dashed border-slate-200">
+                    <History size={32} className="mx-auto mb-3 opacity-60 text-slate-400" />
+                    No edits have been made to this expense yet.
+                  </div>
+                ) : (
+                  <div className="relative pl-6 border-l border-slate-200 dark:border-slate-800 space-y-8">
+                    {expenseEditHistoryList.map((log, index) => (
+                      <div key={log._id || index} className="relative">
+                        {/* Timeline dot */}
+                        <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-amber-500 border-4 border-white dark:border-slate-900 shadow-sm" />
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2.5">
+                            <img src={log.editedBy?.avatar} className="w-8 h-8 rounded-full shadow-sm" alt="Editor Avatar" />
+                            <div>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                                {log.editedBy?.name} {log.editedBy?._id === currentUser?._id ? '(You)' : ''}
+                              </p>
+                              <p className="text-[10px] text-slate-400">
+                                {new Date(log.editedAt || log.createdAt).toLocaleString('en-US', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: 'numeric',
+                                  minute: 'numeric',
+                                  hour12: true
+                                })}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 p-4 border space-y-3">
+                            <p className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">Changed Fields</p>
+                            <div className="space-y-2">
+                              {log.changes.map((change, cIdx) => (
+                                <div key={cIdx} className="text-xs grid grid-cols-1 md:grid-cols-[1fr_auto_1.5fr] gap-2 border-b last:border-0 border-slate-100 dark:border-slate-800 pb-2 last:pb-0">
+                                  <div className="font-semibold text-slate-700 dark:text-slate-300 capitalize">
+                                    {change.field === 'paidBy' ? 'Who Paid' : change.field === 'splitDetails' ? 'Split Shares' : change.field === 'receipt' ? 'Receipt Proof' : change.field}
+                                  </div>
+                                  <div className="hidden md:block text-slate-400">→</div>
+                                  <div className="space-y-1">
+                                    <div className="text-rose-600 dark:text-rose-400 line-through bg-rose-50 dark:bg-rose-950/20 px-1.5 py-0.5 rounded inline-block text-[11px] truncate max-w-full">
+                                      {change.oldValue || 'None'}
+                                    </div>
+                                    <br className="md:hidden" />
+                                    <div className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-0.5 rounded inline-block text-[11px] truncate max-w-full">
+                                      {change.newValue || 'None'}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="pt-4 shrink-0 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 rounded-2xl font-bold transition-all text-sm"
+                >
+                  Close History
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <ChatDrawer
         groupId={activeGroup._id}

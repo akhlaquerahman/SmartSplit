@@ -115,6 +115,56 @@ const useGroupStore = create((set, get) => ({
     }
   },
 
+  updateExpense: async (expenseId, expenseData) => {
+    set({ loading: true, error: null });
+    try {
+      await api.put(`/expenses/${expenseId}`, expenseData);
+      
+      try {
+        await get().fetchGroupDetails(expenseData.groupId);
+      } catch (refreshError) {
+        console.error('Background refresh failed after updating expense:', refreshError);
+      }
+      
+      set({ loading: false });
+      return true;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message;
+      set({ error: errorMessage, loading: false });
+      return false;
+    }
+  },
+
+  deleteExpense: async (expenseId, groupId) => {
+    set({ loading: true, error: null });
+    try {
+      await api.delete(`/expenses/${expenseId}`);
+      
+      try {
+        await get().fetchGroupDetails(groupId);
+      } catch (refreshError) {
+        console.error('Background refresh failed after deleting expense:', refreshError);
+      }
+      
+      set({ loading: false });
+      return true;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message;
+      set({ error: errorMessage, loading: false });
+      return false;
+    }
+  },
+
+  fetchExpenseEditHistory: async (expenseId) => {
+    try {
+      const response = await api.get(`/expenses/${expenseId}/history`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch expense edit history:', error);
+      return [];
+    }
+  },
+
   createSettlement: async (settlementData) => {
     set({ loading: true, error: null });
     try {
