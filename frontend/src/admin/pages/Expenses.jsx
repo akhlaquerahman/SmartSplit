@@ -7,11 +7,29 @@ const Expenses = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [groupId, setGroupId] = useState('');
+  const [groupsList, setGroupsList] = useState([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedExpense, setSelectedExpense] = useState(null);
+
+  useEffect(() => {
+    fetchGroupsList();
+  }, []);
+
+  const fetchGroupsList = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await axios.get(`${baseUrl}/api/admin/groups?limit=100`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setGroupsList(response.data.groups || []);
+    } catch (error) {
+      console.error('Error fetching groups list:', error);
+    }
+  };
 
   useEffect(() => {
     fetchExpenses();
@@ -79,13 +97,18 @@ const Expenses = () => {
             />
           </div>
 
-          <input
-            type="text"
-            placeholder="Group ID"
+          <select
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
+            <option value="">All Groups</option>
+            {groupsList.map((g) => (
+              <option key={g._id} value={g._id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
 
           <input
             type="date"

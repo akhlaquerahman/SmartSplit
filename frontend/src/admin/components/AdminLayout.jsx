@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import Footer from '../../components/Footer';
 import {
   BarChart3,
@@ -17,7 +18,28 @@ import {
 
 const AdminLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
+
+  useEffect(() => {
+    fetchUnreadNotificationsCount();
+    const interval = setInterval(fetchUnreadNotificationsCount, 30000);
+    return () => clearInterval(interval);
+  }, [location.pathname]); // Update badge when navigating
+
+  const fetchUnreadNotificationsCount = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await axios.get(`${baseUrl}/api/admin/notifications?limit=1`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUnreadCount(response.data.unreadCount || 0);
+    } catch (error) {
+      console.error('Error fetching unread notifications count:', error);
+    }
+  };
 
   const menuItems = [
     { path: '/admin/dashboard', icon: BarChart3, label: 'Dashboard' },
@@ -57,15 +79,22 @@ const AdminLayout = ({ children }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                  className={`flex items-center justify-between px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
                     isActive
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.label}
+                  <div className="flex items-center">
+                    <Icon className="mr-3 h-5 w-5" />
+                    {item.label}
+                  </div>
+                  {item.path === '/admin/notifications' && unreadCount > 0 && (
+                    <span className="bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

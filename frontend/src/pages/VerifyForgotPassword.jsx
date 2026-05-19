@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { Mail, ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -28,7 +28,7 @@ const VerifyForgotPassword = () => {
     setError('');
 
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/verify-forgot-password-otp`, {
+      const response = await api.post('/auth/verify-forgot-password-otp', {
         email,
         otp
       });
@@ -49,7 +49,7 @@ const VerifyForgotPassword = () => {
     setError('');
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
+      await api.post('/auth/forgot-password', {
         email
       });
       setError(''); // Clear any previous errors

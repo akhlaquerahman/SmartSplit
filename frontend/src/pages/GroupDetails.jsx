@@ -56,6 +56,47 @@ const GroupDetails = () => {
   const [expenseEditHistoryList, setExpenseEditHistoryList] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Dispute/Report Modal State Hooks and Handlers
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeType, setDisputeType] = useState('');
+  const [disputeTargetId, setDisputeTargetId] = useState('');
+  const [disputeForm, setDisputeForm] = useState({ reason: '', description: '' });
+  const [disputeError, setDisputeError] = useState('');
+  const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
+
+  const handleReportDispute = (type, targetId) => {
+    setDisputeType(type);
+    setDisputeTargetId(targetId);
+    setDisputeForm({ reason: '', description: '' });
+    setDisputeError('');
+    setShowDisputeModal(true);
+  };
+
+  const handleSubmitDispute = async (e) => {
+    e.preventDefault();
+    if (!disputeForm.reason.trim()) {
+      setDisputeError('Please enter a reason for the dispute.');
+      return;
+    }
+    setIsSubmittingDispute(true);
+    setDisputeError('');
+    try {
+      await api.post('/reports', {
+        type: disputeType,
+        targetId: disputeTargetId,
+        reason: disputeForm.reason,
+        description: disputeForm.description
+      });
+      setShowDisputeModal(false);
+      alert('Dispute reported to administrators successfully.');
+    } catch (err) {
+      console.error('Error reporting dispute:', err);
+      setDisputeError(err.response?.data?.message || 'Failed to submit report. Please try again.');
+    } finally {
+      setIsSubmittingDispute(false);
+    }
+  };
+
   const [tab, setTab] = useState('overview');
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [openGroupMenu, setOpenGroupMenu] = useState(false);

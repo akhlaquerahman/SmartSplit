@@ -6,13 +6,32 @@ const Settlements = () => {
   const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('all');
+  const [groupId, setGroupId] = useState('');
+  const [groupsList, setGroupsList] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedSettlement, setSelectedSettlement] = useState(null);
 
   useEffect(() => {
+    fetchGroupsList();
+  }, []);
+
+  const fetchGroupsList = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const response = await axios.get(`${baseUrl}/api/admin/groups?limit=100`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setGroupsList(response.data.groups || []);
+    } catch (error) {
+      console.error('Error fetching groups list:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchSettlements();
-  }, [status, page]);
+  }, [status, page, groupId]);
 
   const fetchSettlements = async () => {
     try {
@@ -20,7 +39,8 @@ const Settlements = () => {
       const params = new URLSearchParams({
         page,
         limit: 10,
-        status
+        status,
+        ...(groupId && { groupId })
       });
 
       const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
@@ -40,7 +60,8 @@ const Settlements = () => {
   const handleFlagSettlement = async (settlementId, flagged, reason = '') => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`${import.meta.env.VITE_API_URL}/api/admin/settlements/${settlementId}/flag`, {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      await axios.patch(`${baseUrl}/api/admin/settlements/${settlementId}/flag`, {
         flagged,
         reason
       }, {
@@ -62,7 +83,8 @@ const Settlements = () => {
     if (!window.confirm('Are you sure you want to delete this settlement? This action cannot be undone.')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/admin/settlements/${settlementId}`, {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      await axios.delete(`${baseUrl}/api/admin/settlements/${settlementId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -100,7 +122,7 @@ const Settlements = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row gap-4">
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -110,6 +132,19 @@ const Settlements = () => {
             <option value="pending">Pending</option>
             <option value="completed">Completed</option>
             <option value="rejected">Rejected</option>
+          </select>
+
+          <select
+            value={groupId}
+            onChange={(e) => setGroupId(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">All Groups</option>
+            {groupsList.map((g) => (
+              <option key={g._id} value={g._id}>
+                {g.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>

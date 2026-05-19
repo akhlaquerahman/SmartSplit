@@ -39,7 +39,8 @@ const Reports = () => {
   const handleResolveReport = async (reportId, status, adminNote = '') => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`${import.meta.env.VITE_API_URL}/api/admin/reports/${reportId}/resolve`, {
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      await axios.patch(`${baseUrl}/api/admin/reports/${reportId}/resolve`, {
         status,
         adminNote
       }, {
@@ -116,74 +117,82 @@ const Reports = () => {
 
       {/* Reports List */}
       <div className="space-y-4">
-        {reports.map((report) => (
-          <div key={report._id} className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="flex items-center">
-                    <img
-                      className="h-8 w-8 rounded-full mr-3"
-                      src={report.reportedBy.avatar}
-                      alt={report.reportedBy.name}
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{report.reportedBy.name}</div>
-                      <div className="text-xs text-gray-500">{new Date(report.createdAt).toLocaleDateString()}</div>
+        {reports.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500 flex flex-col items-center justify-center space-y-3">
+            <span className="text-4xl">🎉</span>
+            <p className="text-lg font-medium text-gray-950">All Clear!</p>
+            <p className="text-sm">No user disputes or reports are pending in the system.</p>
+          </div>
+        ) : (
+          reports.map((report) => (
+            <div key={report._id} className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="flex items-center">
+                      <img
+                        className="h-8 w-8 rounded-full mr-3"
+                        src={report.reportedBy?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(report.reportedBy?.name || 'User')}&background=random`}
+                        alt={report.reportedBy?.name || 'User'}
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{report.reportedBy?.name || 'Unknown'}</div>
+                        <div className="text-xs text-gray-500">{new Date(report.createdAt).toLocaleDateString()}</div>
+                      </div>
                     </div>
+                    {getTypeBadge(report.type)}
+                    {getStatusBadge(report.status)}
                   </div>
-                  {getTypeBadge(report.type)}
-                  {getStatusBadge(report.status)}
+
+                  <div className="mb-3">
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">{report.reason}</h4>
+                    <p className="text-gray-600">{report.description}</p>
+                  </div>
+
+                  {report.adminNote && (
+                    <div className="bg-blue-50 p-3 rounded-md">
+                      <div className="flex items-center text-sm text-blue-800 mb-1">
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Admin Response
+                      </div>
+                      <p className="text-blue-700">{report.adminNote}</p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="mb-3">
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">{report.reason}</h4>
-                  <p className="text-gray-600">{report.description}</p>
+                <div className="flex space-x-2 ml-4">
+                  {report.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const note = prompt('Enter resolution note:');
+                          if (note !== null) handleResolveReport(report._id, 'resolved', note);
+                        }}
+                        className="flex items-center px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Resolve
+                      </button>
+                      <button
+                        onClick={() => {
+                          const note = prompt('Enter dismissal note:');
+                          if (note !== null) handleResolveReport(report._id, 'dismissed', note);
+                        }}
+                        className="flex items-center px-3 py-1 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Dismiss
+                      </button>
+                    </>
+                  )}
+                  <button className="p-2 text-gray-400 hover:text-gray-600" title="View Details">
+                    <Eye className="h-5 w-5" />
+                  </button>
                 </div>
-
-                {report.adminNote && (
-                  <div className="bg-blue-50 p-3 rounded-md">
-                    <div className="flex items-center text-sm text-blue-800 mb-1">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Admin Response
-                    </div>
-                    <p className="text-blue-700">{report.adminNote}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex space-x-2 ml-4">
-                {report.status === 'pending' && (
-                  <>
-                    <button
-                      onClick={() => {
-                        const note = prompt('Enter resolution note:');
-                        if (note !== null) handleResolveReport(report._id, 'resolved', note);
-                      }}
-                      className="flex items-center px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Resolve
-                    </button>
-                    <button
-                      onClick={() => {
-                        const note = prompt('Enter dismissal note:');
-                        if (note !== null) handleResolveReport(report._id, 'dismissed', note);
-                      }}
-                      className="flex items-center px-3 py-1 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Dismiss
-                    </button>
-                  </>
-                )}
-                <button className="p-2 text-gray-400 hover:text-gray-600" title="View Details">
-                  <Eye className="h-5 w-5" />
-                </button>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Pagination */}
