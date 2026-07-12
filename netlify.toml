@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  VITE_API_URL = "https://smartsplit-redm.onrender.com"
+  VITE_GOOGLE_CLIENT_ID = "your_actual_google_client_id"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
