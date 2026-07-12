@@ -40,14 +40,14 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const ChartHeader = ({ title, subtitle, icon: Icon, colorClass }) => (
-  <div className="flex items-center justify-between mb-8">
-    <div>
-      <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-        <Icon className={colorClass} size={20} /> {title}
+  <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+    <div className="min-w-0">
+      <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2 whitespace-nowrap">
+        <Icon className={`${colorClass} shrink-0`} size={20} /> {title}
       </h2>
       <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">{subtitle}</p>
     </div>
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 shrink-0">
       <select className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg px-2 py-1 outline-none">
         <option>7 Days</option>
         <option>30 Days</option>
