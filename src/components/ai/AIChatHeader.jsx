@@ -13,8 +13,8 @@ const AIChatHeader = () => {
         <button onClick={toggleSidebar} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
           <PanelLeft className="w-5 h-5" />
         </button>
-        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-          <Bot className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full shadow-[0_2px_10px_rgb(99,102,241,0.3)] flex items-center justify-center text-white bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 border border-white/10 shrink-0">
+          <span className="font-black text-[11px] tracking-tight" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.2)' }}>AI</span>
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 text-sm">SmartSplit AI</h3>

@@ -14,8 +14,8 @@ const WelcomeScreen = () => {
 
   return (
     <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-6">
-      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-2">
-        <Sparkles className="w-8 h-8" />
+      <div className="w-16 h-16 rounded-full shadow-[0_8px_30px_rgb(99,102,241,0.4)] flex items-center justify-center text-white bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 border border-white/10 mb-2">
+        <span className="font-black text-2xl tracking-tight" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>AI</span>
       </div>
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Hello! 👋</h2>
