@@ -28,6 +28,7 @@ const Reports = () => {
   const { groups, fetchGroups, activeGroup, fetchGroupDetails, loading } = useGroupStore();
   const [searchParams] = useSearchParams();
   const urlGroupId = searchParams.get('groupId');
+  const shouldPrint = searchParams.get('print') === 'true';
   const [selectedGroupId, setSelectedGroupId] = useState(urlGroupId || null);
   const [reportDate, setReportDate] = useState(new Date());
   const reportRef = useRef(null);
@@ -44,9 +45,15 @@ const Reports = () => {
 
   useEffect(() => {
     if (urlGroupId) {
-      handleGroupClick(urlGroupId);
+      handleGroupClick(urlGroupId).then(() => {
+        if (shouldPrint) {
+          setTimeout(() => {
+            if (reportRef.current) handlePrint();
+          }, 1000);
+        }
+      });
     }
-  }, [urlGroupId]);
+  }, [urlGroupId, shouldPrint]);
 
   const handleGroupClick = async (groupId) => {
     setSelectedGroupId(groupId);

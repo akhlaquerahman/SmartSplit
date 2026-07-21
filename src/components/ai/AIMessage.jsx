@@ -2,12 +2,21 @@ import React from 'react';
 import { Bot, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
 import ActionCard from './widgets/ActionCard';
 import ChartWidget from './widgets/ChartWidget';
+import ActionWizards from './widgets/ActionWizards';
 
-const AIMessage = ({ content }) => {
+const AIMessage = ({ content, metadata }) => {
   
-  // Advanced enterprise rendering: If the LLM returned JSON strings for widgets, parse them.
-  // This is a naive placeholder logic. In production, we would use strict regex or block detection.
   const renderContent = () => {
+    // Render rich Action Widgets natively inside the chat feed
+    if (metadata && metadata.isWidget && metadata.actionTrigger) {
+      return (
+        <div className="mt-2 w-full max-w-sm">
+          <ActionWizards actionTrigger={metadata.actionTrigger} />
+        </div>
+      );
+    }
+
+    // Legacy fallback parsing
     if (content.includes('{"type": "ActionCard"')) {
       return (
         <>

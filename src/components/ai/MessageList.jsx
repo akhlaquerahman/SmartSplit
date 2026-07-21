@@ -16,7 +16,7 @@ const MessageList = () => {
       {messages.map((msg, i) => (
         msg.role === 'user' 
           ? <UserMessage key={msg.id || i} content={msg.content} />
-          : <AIMessage key={msg.id || i} content={msg.content} />
+          : <AIMessage key={msg.id || i} content={msg.content} metadata={msg.metadata} />
       ))}
       <div ref={bottomRef} />
     </div>

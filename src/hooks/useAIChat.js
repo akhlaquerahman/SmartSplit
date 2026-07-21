@@ -10,7 +10,6 @@ export const useAIChat = () => {
   const sendMessage = async (text) => {
     setError(null);
     addMessage({ id: Date.now().toString(), role: 'user', content: text });
-    addMessage({ id: (Date.now() + 1).toString(), role: 'assistant', content: '' });
     setStreaming(true);
 
     try {
@@ -37,13 +36,29 @@ export const useAIChat = () => {
       }
       // ---------------------------------
 
+      const aiResult = data.aiResult;
+      
+      // Strict JSON Action Dispatch: Append as a widget message
+      if (aiResult && aiResult.type === 'action') {
+        addMessage({ 
+          id: (Date.now() + 1).toString(), 
+          role: 'assistant', 
+          content: '', 
+          metadata: { actionTrigger: aiResult.action, isWidget: true } 
+        });
+        setStreaming(false);
+        return;
+      }
+
+      // Standard text response
       let finalResponse = "I'm sorry, I don't understand that.";
       if (data.assistantMessage && data.assistantMessage.content) {
         finalResponse = data.assistantMessage.content;
       }
       
-      const chunks = finalResponse.split(' ');
+      addMessage({ id: (Date.now() + 1).toString(), role: 'assistant', content: '' });
       
+      const chunks = finalResponse.split(' ');
       for (let i = 0; i < chunks.length; i++) {
         await new Promise(r => setTimeout(r, 50));
         updateLastMessage(chunks[i] + ' ');

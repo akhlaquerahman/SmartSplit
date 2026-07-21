@@ -1,10 +1,10 @@
 import React from 'react';
-import { X, Minimize2, PanelLeft, Bot, Activity } from 'lucide-react';
+import { X, Minimize2, Maximize2, PanelLeft, Bot, Activity } from 'lucide-react';
 import useAIChatStore from '../../store/useAIChatStore';
 import useDebuggerStore from '../../store/useDebuggerStore';
 
 const AIChatHeader = () => {
-  const { closeChat, toggleSidebar, isStreaming } = useAIChatStore();
+  const { closeChat, toggleSidebar, isStreaming, isFullScreen, toggleFullScreen } = useAIChatStore();
   const { toggleDrawer } = useDebuggerStore();
 
   return (
@@ -31,6 +31,9 @@ const AIChatHeader = () => {
           className="px-2 py-1 bg-slate-900 text-green-400 font-mono text-[10px] font-bold rounded shadow-sm hover:bg-slate-800 transition-colors"
         >
           DEV MODE
+        </button>
+        <button onClick={toggleFullScreen} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
+          {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
         <button onClick={closeChat} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
           <X className="w-5 h-5" />

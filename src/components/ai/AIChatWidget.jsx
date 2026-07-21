@@ -4,7 +4,7 @@ import AIChatWindow from './AIChatWindow';
 import { Bot } from 'lucide-react';
 
 const AIChatWidget = () => {
-  const { isOpen, isSidebarOpen, toggleChat } = useAIChatStore();
+  const { isOpen, isSidebarOpen, isFullScreen, toggleChat } = useAIChatStore();
 
   return (
 
@@ -24,7 +24,11 @@ const AIChatWidget = () => {
 
       {/* Chat Window Container */}
       {isOpen && (
-        <div className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 z-[100] w-full sm:w-[380px] lg:w-[420px] h-[100dvh] sm:h-[calc(100vh-48px)] sm:max-h-[850px] bg-white sm:rounded-2xl shadow-2xl border-0 sm:border sm:border-gray-200 overflow-hidden flex flex-col transform transition-transform duration-300 origin-bottom-right">
+        <div className={`fixed inset-0 z-[100] bg-white overflow-hidden flex flex-col transform transition-all duration-300 ${
+          isFullScreen 
+            ? 'w-full h-full' 
+            : 'sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[380px] lg:w-[420px] sm:h-[calc(100vh-48px)] sm:max-h-[850px] sm:rounded-2xl shadow-2xl sm:border sm:border-gray-200 origin-bottom-right'
+        }`}>
           <AIChatWindow />
         </div>
       )}
